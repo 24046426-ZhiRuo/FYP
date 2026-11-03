@@ -138,6 +138,129 @@
                 font-size: 12px;
             }
         }
+
+        /* ===== New photo-page filters / effects (added with the new face filter pack) ===== */
+
+        /* Filter tray thumbnails: the PNG props from propsforphototaking/ */
+        .face-filter-preview.rp-crown,
+        .face-filter-preview.rpfutureready,
+        .face-filter-preview.rp-sticker-sunglasses,
+        .face-filter-preview.rp-go-green,
+        .face-filter-preview.fingerheart,
+        .face-filter-preview.rp-mouse-ears {
+            background-position: center;
+            background-repeat: no-repeat;
+            background-size: contain;
+        }
+
+        .face-filter-preview.rp-crown { background-image: url('propsforphototaking/rp-crown.png'); }
+        .face-filter-preview.rpfutureready { background-image: url('propsforphototaking/rp-future-ready.png'); }
+        .face-filter-preview.rp-sticker-sunglasses { background-image: url('propsforphototaking/rp-sticker-sunglasses.png'); }
+        .face-filter-preview.rp-go-green { background-image: url('propsforphototaking/rp-go-green.png'); }
+        .face-filter-preview.fingerheart { background-image: url('propsforphototaking/fingerheart.png'); }
+        .face-filter-preview.rp-mouse-ears { background-image: url('propsforphototaking/rp-mouse-ears.png'); }
+
+        /* Live effects canvas (background replacement + beauty) sits between the video and the props */
+        .camera-view { position: relative; }
+        .fx-canvas {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+            pointer-events: none;
+        }
+        .camera-view.fx-on .fx-canvas { display: block; }
+        .camera-view.fx-on #video { opacity: 0; }
+
+        /* Gesture badge + tip line */
+        .gesture-indicator {
+            position: absolute;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 6px 14px;
+            border-radius: 999px;
+            background: rgba(0, 0, 0, 0.65);
+            color: #fff;
+            font-size: 14px;
+            font-weight: 700;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s;
+            z-index: 6;
+            white-space: nowrap;
+        }
+        .gesture-indicator.show { opacity: 1; }
+        .gesture-hint {
+            text-align: center;
+            font-size: 13px;
+            color: #64748b;
+            margin: 10px 0 0;
+        }
+        .gesture-hint[data-state="error"] { color: #b91c1c; }
+
+        /* Beauty + background dropdowns */
+        .fx-card {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 14px 0 0;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            background: #fff;
+        }
+        .fx-card label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1 1 160px;
+            font-size: 13px;
+            font-weight: 700;
+            color: #374151;
+        }
+        .fx-card select {
+            padding: 8px 10px;
+            border: 1px solid #d1d5db;
+            border-radius: 10px;
+            background: #fff;
+            font: inherit;
+            font-weight: 600;
+        }
+
+        /* Effects / Reactions / Smile capture / Countdown / Peace capture / Photo strip switches */
+        .toggle-row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: center;
+            margin: 12px 0 0;
+        }
+        .toggle-row .toggle {
+            min-height: 40px;
+            padding: 8px 14px;
+            border: 1px solid #d1d5db;
+            border-radius: 999px;
+            background: #fff;
+            color: #374151;
+            font: inherit;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+        .toggle-row .toggle[aria-pressed="true"] {
+            background: #6366F1;
+            border-color: #6366F1;
+            color: #fff;
+        }
+
+        /* Debug read-outs: hidden unless the page URL has ?debug */
+        .debug-panel { display: none; }
+        html.debug .debug-panel { display: block; }
+        .gesture-debug { font-size: 12px; color: #475569; margin: 4px 0; }
     </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -646,101 +769,58 @@
                 </button>
             </div>
 
-            <!-- Beauty filter visitor setting - changes made by nick -->
-            <div class="beauty-filter-setting" id="beauty-filter-setting-panel">
-                <label for="beauty-filter-setting">Beauty Filter</label>
-                <select id="beauty-filter-setting" class="filter-setting-select" aria-label="Beauty filter strength">
-                    <option value="off">Off</option>
-                    <option value="light">Light</option>
-                    <option value="medium" selected>Medium</option>
-                    <option value="strong">Strong</option>
-                </select>
-            </div>
-
-            <!-- Swipeable animated face filter tray - changes made by nick -->
+            <!-- Swipeable animated face filter tray (new RP filter pack) -->
             <div class="face-filter-panel" aria-label="Virtual face filters">
                 <div class="face-filter-active" id="face-filter-active">No filter</div>
                 <div class="face-filter-selector" id="face-filter-selector" role="listbox"
                     aria-label="Swipe face filters">
-                    
                     <button type="button" class="face-filter-card active" data-accessory="none" role="option"
                         aria-selected="true">
                         <span class="face-filter-preview none">No</span>
                         <span>None</span>
                     </button>
-                    <button type="button" class="face-filter-card" data-accessory="glasses" role="option"
+                    <button type="button" class="face-filter-card" data-accessory="rp-crown" role="option"
                         aria-selected="false">
-                        <span class="face-filter-preview glasses"></span>
-                        <span>Glasses</span>
+                        <span class="face-filter-preview rp-crown"></span>
+                        <span>RP Crown</span>
                     </button>
-                    <button type="button" class="face-filter-card" data-accessory="sparkle-glasses" role="option"
+                    <button type="button" class="face-filter-card" data-accessory="rp-future-ready" role="option"
                         aria-selected="false">
-                        <span class="face-filter-preview sparkle-glasses"></span>
-                        <span>Sparkle</span>
+                        <span class="face-filter-preview rpfutureready"></span>
+                        <span>Future Ready</span>
                     </button>
-                    <button type="button" class="face-filter-card" data-accessory="moustache" role="option"
+                    <button type="button" class="face-filter-card" data-accessory="rp-sticker-sunglasses" role="option"
                         aria-selected="false">
-                        <span class="face-filter-preview moustache"></span>
-                        <span>Stache</span>
+                        <span class="face-filter-preview rp-sticker-sunglasses"></span>
+                        <span>RP Sunglasses</span>
                     </button>
-                    <button type="button" class="face-filter-card" data-accessory="hat" role="option"
+                    <button type="button" class="face-filter-card" data-accessory="RPGoGreenGoRP!" role="option"
                         aria-selected="false">
-                        <span class="face-filter-preview hat"></span>
-                        <span>Hat</span>
+                        <span class="face-filter-preview rp-go-green"></span>
+                        <span>Go Green Stand</span>
                     </button>
-                    <button type="button" class="face-filter-card" data-accessory="flower-crown" role="option"
+                    <button type="button" class="face-filter-card" data-accessory="fingerheart" role="option"
                         aria-selected="false">
-                        <span class="face-filter-preview flower-crown"></span>
-                        <span>Flowers</span>
+                        <span class="face-filter-preview fingerheart"></span>
+                        <span>Finger Heart</span>
                     </button>
-                    <button type="button" class="face-filter-card" data-accessory="halo" role="option"
+                    <button type="button" class="face-filter-card" data-accessory="rp-mouse-ears" role="option"
                         aria-selected="false">
-                        <span class="face-filter-preview halo"></span>
-                        <span>Halo</span>
-                    </button>
-                    <button type="button" class="face-filter-card" data-accessory="blush" role="option"
-                        aria-selected="false">
-                        <span class="face-filter-preview blush"></span>
-                        <span>Blush</span>
-                    </button>
-                    <button type="button" class="face-filter-card" data-accessory="party" role="option"
-                        aria-selected="false">
-                        <span class="face-filter-preview party"></span>
-                        <span>Party</span>
-                    </button>
-                    <!-- Extra face filter pack (DONE BY NICK) -->
-                    <button type="button" class="face-filter-card" data-accessory="rp-shades" role="option"
-                        aria-selected="false">
-                        <span class="face-filter-preview rp-shades"></span>
-                        <span>Shades</span>
-                    </button>
-                    <button type="button" class="face-filter-card" data-accessory="leaf-crown" role="option"
-                        aria-selected="false">
-                        <span class="face-filter-preview leaf-crown"></span>
-                        <span>Leaf</span>
-                    </button>
-                    <button type="button" class="face-filter-card" data-accessory="graduation" role="option"
-                        aria-selected="false">
-                        <span class="face-filter-preview graduation"></span>
-                        <span>Grad</span>
-                    </button>
-                    <button type="button" class="face-filter-card" data-accessory="rp-headband" role="option"
-                        aria-selected="false">
-                        <span class="face-filter-preview rp-headband">
-                            <span class="mini-ear left"></span>
-                            <span class="mini-ear right"></span>
-                            <span class="mini-rp">RP</span>
-                        </span>
-                        <span>RP Bear 🎀</span>
+                        <span class="face-filter-preview rp-mouse-ears"></span>
+                        <span>RP Mouse Ears</span>
                     </button>
                 </div>
             </div>
 
             <div class="photo-preview">
                 <div id="camera-container" class="camera-view">
-                    <video id="video" autoplay playsinline
+                    <video id="video" autoplay playsinline muted
                         style="width: 100%; height: 100%; object-fit: cover;"></video>
+                    <canvas id="fx-canvas" class="fx-canvas" aria-hidden="true"></canvas>
                     <canvas id="face-accessory-canvas" class="face-accessory-canvas" aria-hidden="true"></canvas>
+                    <canvas id="hand-gesture-canvas" class="face-accessory-canvas" aria-hidden="true"></canvas>
+                    <canvas id="wink-canvas" class="face-accessory-canvas" aria-hidden="true"></canvas>
+                    <div id="gesture-indicator" class="gesture-indicator">🖐️ Open palm detected!</div>
                     <canvas id="photo-canvas" style="display: none;"></canvas>
                     <div id="countdown-overlay" style="display: none;">
                         <span id="countdown-text">6</span>
@@ -752,10 +832,36 @@
                 </div>
             </div>
 
+            <!-- One tip line for the hand gestures and wink -->
+            <p id="gesture-hint" class="gesture-hint">Loading hand gestures...</p>
+
+            <!-- Beauty filter + background (face landmarks + person segmentation) -->
+            <div class="fx-card" id="beauty-filter-setting-panel">
+                <label for="beauty-select">Beauty Filter
+                    <select id="beauty-select" aria-label="Beauty filter strength">
+                        <option value="off">Off</option>
+                        <option value="light">Light</option>
+                        <option value="medium">Medium</option>
+                        <option value="strong">Strong</option>
+                    </select>
+                </label>
+                <label for="bg-select">Background
+                    <select id="bg-select">
+                        <option value="none">Original</option>
+                        <option value="blur">Blur</option>
+                        <option value="rp-background1">RP Campus</option>
+                        <option value="rp-background2">RP Background 2</option>
+                    </select>
+                </label>
+            </div>
+
+            <!-- Effects / Reactions / Smile capture / Countdown / Peace capture / Photo strip switches are added here by the script -->
+            <div id="effects-row" class="toggle-row"></div>
+
             <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
 
-                <!-- NEW Mirror Button done by nick-->
-                <button id="invert-btn" class="secondary-button" type="button">
+                <!-- Mirror button (id matches the new script) -->
+                <button id="mirror-btn" class="secondary-button" type="button">
                     Mirror View
                 </button>
 
@@ -780,6 +886,12 @@
                     <span id="back-from-photo-text">Back</span>
                 </button>
 
+            </div>
+
+            <!-- Debug lines: hidden for visitors. Add ?debug to the URL to see them. -->
+            <div id="debug-panel" class="debug-panel">
+                <p id="gesture-debug" class="gesture-debug"></p>
+                <p id="wink-debug" class="gesture-debug"></p>
             </div>
         </div>
     </div>
@@ -1323,8 +1435,8 @@
         </form>
     </div>
 
-    <!-- facial detection (Done by Yu Kang) -->
-    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+    <!-- facial detection: new face filter pack uses the @vladmandic build of face-api -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api@1.7.15/dist/face-api.js"></script>
     <script src="feedback.js?v=landing-cleanup-20260716"></script>
 </body>
 
