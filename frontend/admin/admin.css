@@ -7531,3 +7531,56 @@ input:checked + .slider:before {
         display: none;
     }
 }
+
+/* ==================== SYSTEM STATUS PAGE ==================== */
+/* By ZHI RUO
+/* Same header layout the dashboard uses (title left, Refresh right) */
+#system-status-page .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+}
+
+/* Refresh button: icon + text on one line, icon spins while pressed */
+#system-status-page .refresh-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 1.25rem;
+    background: var(--theme-btn-primary-bg);
+    color: var(--theme-btn-primary-text);
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+#system-status-page .refresh-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+#system-status-page .refresh-btn svg {
+    animation: spin 1s linear infinite;
+    animation-play-state: paused;
+}
+
+#system-status-page .refresh-btn:active svg,
+#system-status-page .refresh-btn.is-loading svg {
+    animation-play-state: running;
+}
+
+/* Icon boxes follow the theme instead of fixed white */
+#system-status-page .status-item-icon {
+    background: var(--theme-card-bg);
+    border: 1px solid var(--theme-border-color);
+    flex-shrink: 0;
+}
+
+/* Gap between the stacked cards on this page */
+#system-status-page .status-card + .status-card {
+    margin-top: 1.5rem;
+}
