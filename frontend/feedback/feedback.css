@@ -1041,7 +1041,97 @@ textarea::placeholder {
 .face-detection-status.error {
     color: #b91c1c;
 }
+/* RP Teddy Headband */
+.rp-headband-prop {
+    position: absolute;
+    width: 100%;
+    height: 35%;
+    top: -12%;
+    left: 0;
+    pointer-events: none;
+    z-index: 20;
+}
 
+/* Pink headband */
+.rp-headband-prop::before {
+    content: '';
+    position: absolute;
+    width: 76%;
+    height: 75%;
+    left: 12%;
+    top: 20%;
+
+    border: 5px solid #ec4899;
+    border-bottom: 0;
+    border-radius: 100px 100px 0 0;
+
+    background: transparent;
+
+    filter: drop-shadow(0 2px 3px rgba(236,72,153,.3));
+}
+
+/* Teddy ears */
+.rp-headband-prop .bear-ear {
+    position: absolute;
+    width: 23%;
+    height: 75%;
+    top: 0;
+
+    background: linear-gradient(
+        145deg,
+        #fbcfe8,
+        #ec4899
+    );
+
+    border: 3px solid white;
+    border-radius: 50% 50% 45% 45%;
+
+    box-shadow: 0 2px 5px rgba(0,0,0,.15);
+}
+
+.rp-headband-prop .bear-ear.left {
+    left: 13%;
+    transform: rotate(-18deg);
+}
+
+.rp-headband-prop .bear-ear.right {
+    right: 13%;
+    transform: rotate(18deg);
+}
+
+/* Inner ears */
+.rp-headband-prop .bear-ear::after {
+    content: '';
+    position: absolute;
+    width: 55%;
+    height: 55%;
+    left: 22%;
+    top: 20%;
+
+    background: #fce7f3;
+    border-radius: 50%;
+}
+
+/* RP badge */
+.rp-headband-prop .rp-logo {
+    position: absolute;
+    left: 50%;
+    top: 38%;
+    transform: translate(-50%, -50%);
+
+    background: white;
+    color: #db2777;
+
+    font-size: 11px;
+    font-weight: 900;
+
+    padding: 4px 7px;
+    border-radius: 50%;
+
+    border: 2px solid #f9a8d4;
+
+    box-shadow: 0 2px 5px rgba(0,0,0,.15);
+}
 
 /* Camera view and framing corners */
 .camera-view {
@@ -1314,23 +1404,64 @@ textarea::placeholder {
 
 .face-filter-preview.graduation::before {
     content: '';
-    width: 42px;
-    height: 28px;
-    background:
-        linear-gradient(#0f766e 0 0) center 18px / 23px 8px no-repeat,
-        linear-gradient(135deg, transparent 20%, #111827 21% 79%, transparent 80%);
+    position: absolute;
+    left: 50%;
+    top: 13px;
+    transform: translateX(-50%);
+    width: 38px;
+    height: 13px;
+
+    /* Graduation cap top */
+    background: linear-gradient(
+        145deg,
+        #374151 0%,
+        #111827 45%,
+        #030712 100%
+    );
+
+    clip-path: polygon(
+        50% 0%,
+        100% 38%,
+        50% 100%,
+        0% 38%
+    );
+
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.25));
 }
 
 .face-filter-preview.graduation::after {
     content: '';
     position: absolute;
-    right: 10px;
-    top: 25px;
-    width: 5px;
-    height: 12px;
-    border-radius: 999px;
-    background: #facc15;
+    left: 50%;
+    top: 23px;
+    transform: translateX(-50%);
+
+    width: 24px;
+    height: 13px;
+
+    background: linear-gradient(
+        180deg,
+        #1f2937,
+        #030712
+    );
+
+    border-radius: 2px 2px 6px 6px;
+
+    box-shadow:
+        inset 0 2px 2px rgba(255,255,255,0.12),
+        0 2px 3px rgba(0,0,0,0.2);
 }
+
+/* Golden tassel */
+.face-filter-preview.graduation {
+    position: relative;
+}
+
+.face-filter-preview.graduation {
+    background-image: none;
+}
+
+
 
 .face-accessory-canvas {
     position: absolute;
@@ -5040,4 +5171,51 @@ textarea::placeholder {
     .question-group {
         padding: 16px;
     }
+}
+
+
+/* RP Bear photo prop overlay */
+.rp-photo-prop-controls {
+    display: flex;
+    justify-content: center;
+    margin: 12px auto 0;
+}
+
+.rp-photo-prop-button {
+    border: 1px solid #15803d;
+    border-radius: 999px;
+    padding: 10px 20px;
+    background: #15803d;
+    color: #fff;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.rp-photo-prop-button:hover {
+    background: #166534;
+    transform: translateY(-1px);
+}
+
+.rp-photo-prop-button[aria-pressed="true"] {
+    background: #374151;
+    border-color: #374151;
+}
+
+#rp-photo-bear-overlay {
+    position: absolute;
+    right: 5%;
+    bottom: 5%;
+    width: 22%;
+    height: auto;
+    max-height: 82%;
+    object-fit: contain;
+    z-index: 8;
+    pointer-events: none;
+    user-select: none;
+}
+
+#rp-photo-bear-overlay[hidden] {
+    display: none !important;
 }
