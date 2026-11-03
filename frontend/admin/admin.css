@@ -7533,7 +7533,7 @@ input:checked + .slider:before {
 }
 
 /* ==================== SYSTEM STATUS PAGE ==================== */
-/* By ZHI RUO
+/* By ZHI RUO */
 /* Same header layout the dashboard uses (title left, Refresh right) */
 #system-status-page .page-header {
     display: flex;
@@ -7583,4 +7583,53 @@ input:checked + .slider:before {
 /* Gap between the stacked cards on this page */
 #system-status-page .status-card + .status-card {
     margin-top: 1.5rem;
+}
+
+/* Page padding (same as the other admin pages) */
+#system-status-page {
+    min-height: 100%;
+    padding: 30px;
+}
+
+/* Hardware usage graphs */
+.hw-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 1.5rem;
+}
+
+.hw-card {
+    background: var(--theme-bg-color);
+    border-radius: 12px;
+    padding: 1rem 1.25rem;
+}
+
+.hw-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+}
+
+.hw-card-title {
+    font-weight: 600;
+}
+
+.hw-card-sub {
+    font-size: 12px;
+    opacity: 0.7;
+    margin-top: 2px;
+}
+
+.hw-card-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--theme-btn-primary-bg);
+}
+
+/* Fixed height so Chart.js doesn't keep growing */
+.hw-chart-wrap {
+    position: relative;
+    height: 200px;
 }
