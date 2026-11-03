@@ -3292,6 +3292,64 @@
                         </div>
                         <p class="last-updated" id="system-status-last-checked">Last checked: --</p>
                     </div>
+                    
+                    <!-- AI Models Health -->
+                    <div class="status-card">
+                        <div class="status-header">
+                            <h3>AI Models (LLM)</h3>
+                            <span id="ollama-status" class="status-badge status-checking">Checking...</span>
+                        </div>
+                        <div id="ai-model-list" class="status-grid">
+                            <p class="last-updated">Checking AI models...</p>
+                        </div>
+                    </div>
+
+                    <!-- Hardware Usage -->
+                    <div class="status-card">
+                        <div class="status-header">
+                            <h3>Hardware Usage</h3>
+                            <span class="status-item-label">Live · updates every 5s</span>
+                        </div>
+                        <div class="hw-grid">
+
+                            <!-- GPU -->
+                            <div class="hw-card">
+                                <div class="hw-card-header">
+                                    <div>
+                                        <div class="hw-card-title">GPU Usage</div>
+                                        <div class="hw-card-sub" id="gpu-subtitle">AI model processing</div>
+                                    </div>
+                                    <div class="hw-card-value" id="gpu-current">--</div>
+                                </div>
+                                <div class="hw-chart-wrap"><canvas id="gpuUsageChart"></canvas></div>
+                            </div>
+
+                            <!-- CPU -->
+                            <div class="hw-card">
+                                <div class="hw-card-header">
+                                    <div>
+                                        <div class="hw-card-title">CPU Usage</div>
+                                        <div class="hw-card-sub" id="cpu-subtitle">Application processing</div>
+                                    </div>
+                                    <div class="hw-card-value" id="cpu-current">--</div>
+                                </div>
+                                <div class="hw-chart-wrap"><canvas id="cpuUsageChart"></canvas></div>
+                            </div>
+
+                            <!-- Storage -->
+                            <div class="hw-card">
+                                <div class="hw-card-header">
+                                    <div>
+                                        <div class="hw-card-title">Application Storage</div>
+                                        <div class="hw-card-sub" id="storage-subtitle">Drive usage</div>
+                                    </div>
+                                    <div class="hw-card-value" id="storage-current">--</div>
+                                </div>
+                                <div class="hw-chart-wrap"><canvas id="storageUsageChart"></canvas></div>
+                            </div>
+
+                        </div>
+                    </div>
                 </div>
 
                 <!-- Timer Countdown Page (DONE BY BERNISSA) -->
