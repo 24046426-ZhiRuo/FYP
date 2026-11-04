@@ -162,8 +162,7 @@
 //     document.addEventListener('mousemove') - Reset inactivity timer (DONE BY PRETI)
 //     document.addEventListener('touchstart') - Reset inactivity timer (DONE BY PRETI)
 //
-// 11. PLEDGEBOARD NAVIGATION
-//     function viewPledgeboard()       - Navigate to pledgeboard page (DONE BY PRETI)
+
 //
 
 
