@@ -9086,7 +9086,7 @@ arOnReady(() => {
     requestAnimationFrame(reactLoop);
     requestAnimationFrame(autoLoop);
 });
-// ---------- Photo strip: 3-2-1 before every shot + "Photo X of 3" ----------
+
 function stripProgressBox() {
     const view = document.getElementById('camera-container');
     if (!view) return null;
