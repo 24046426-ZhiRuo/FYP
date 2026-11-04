@@ -153,15 +153,35 @@
             background-size: contain;
         }
 
-        .face-filter-preview.rp-crown { background-image: url('propsforphototaking/rp-crown.png'); }
-        .face-filter-preview.rpfutureready { background-image: url('propsforphototaking/rp-future-ready.png'); }
-        .face-filter-preview.rp-sticker-sunglasses { background-image: url('propsforphototaking/rp-sticker-sunglasses.png'); }
-        .face-filter-preview.rp-go-green { background-image: url('propsforphototaking/rp-go-green.png'); }
-        .face-filter-preview.fingerheart { background-image: url('propsforphototaking/fingerheart.png'); }
-        .face-filter-preview.rp-mouse-ears { background-image: url('propsforphototaking/rp-mouse-ears.png'); }
+        .face-filter-preview.rp-crown {
+            background-image: url('propsforphototaking/rp-crown.png');
+        }
+
+        .face-filter-preview.rpfutureready {
+            background-image: url('propsforphototaking/rp-future-ready.png');
+        }
+
+        .face-filter-preview.rp-sticker-sunglasses {
+            background-image: url('propsforphototaking/rp-sticker-sunglasses.png');
+        }
+
+        .face-filter-preview.rp-go-green {
+            background-image: url('propsforphototaking/rp-go-green.png');
+        }
+
+        .face-filter-preview.fingerheart {
+            background-image: url('propsforphototaking/fingerheart.png');
+        }
+
+        .face-filter-preview.rp-mouse-ears {
+            background-image: url('propsforphototaking/rp-mouse-ears.png');
+        }
 
         /* Live effects canvas (background replacement + beauty) sits between the video and the props */
-        .camera-view { position: relative; }
+        .camera-view {
+            position: relative;
+        }
+
         .fx-canvas {
             position: absolute;
             inset: 0;
@@ -171,8 +191,14 @@
             display: none;
             pointer-events: none;
         }
-        .camera-view.fx-on .fx-canvas { display: block; }
-        .camera-view.fx-on #video { opacity: 0; }
+
+        .camera-view.fx-on .fx-canvas {
+            display: block;
+        }
+
+        .camera-view.fx-on #video {
+            opacity: 0;
+        }
 
         /* Gesture badge + tip line */
         .gesture-indicator {
@@ -192,14 +218,21 @@
             z-index: 6;
             white-space: nowrap;
         }
-        .gesture-indicator.show { opacity: 1; }
+
+        .gesture-indicator.show {
+            opacity: 1;
+        }
+
         .gesture-hint {
             text-align: center;
             font-size: 13px;
             color: #64748b;
             margin: 10px 0 0;
         }
-        .gesture-hint[data-state="error"] { color: #b91c1c; }
+
+        .gesture-hint[data-state="error"] {
+            color: #b91c1c;
+        }
 
         /* Beauty + background dropdowns */
         .fx-card {
@@ -213,6 +246,7 @@
             border-radius: 14px;
             background: #fff;
         }
+
         .fx-card label {
             display: flex;
             flex-direction: column;
@@ -222,6 +256,7 @@
             font-weight: 700;
             color: #374151;
         }
+
         .fx-card select {
             padding: 8px 10px;
             border: 1px solid #d1d5db;
@@ -239,6 +274,7 @@
             justify-content: center;
             margin: 12px 0 0;
         }
+
         .toggle-row .toggle {
             min-height: 40px;
             padding: 8px 14px;
@@ -251,6 +287,7 @@
             font-weight: 700;
             cursor: pointer;
         }
+
         .toggle-row .toggle[aria-pressed="true"] {
             background: #6366F1;
             border-color: #6366F1;
@@ -258,9 +295,19 @@
         }
 
         /* Debug read-outs: hidden unless the page URL has ?debug */
-        .debug-panel { display: none; }
-        html.debug .debug-panel { display: block; }
-        .gesture-debug { font-size: 12px; color: #475569; margin: 4px 0; }
+        .debug-panel {
+            display: none;
+        }
+
+        html.debug .debug-panel {
+            display: block;
+        }
+
+        .gesture-debug {
+            font-size: 12px;
+            color: #475569;
+            margin: 4px 0;
+        }
     </style>
 
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
@@ -756,16 +803,16 @@
 
             <!-- facial detection (Done by Yu Kang) -->
             <p id="face-detection-status" class="face-detection-status info">Preparing face detection...</p>
-             
+
             <!-- Photo or boomerang capture selection - changes made by nick -->
             <div class="capture-mode-selector" role="group" aria-label="Capture mode">
                 <button type="button" id="photo-mode-btn" class="capture-mode-btn active"
                     onclick="selectCaptureMode('photo')" aria-pressed="true">
-                    Photo
+                    📷 Photo
                 </button>
                 <button type="button" id="boomerang-mode-btn" class="capture-mode-btn"
                     onclick="selectCaptureMode('boomerang')" aria-pressed="false">
-                    Boomerang GIF
+                    🔄 Boomerang
                 </button>
             </div>
 

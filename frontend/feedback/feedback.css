@@ -1,3 +1,9 @@
+/* ============================================================
+   COMBINED STYLESHEET
+   Original feedback.css first; camera/theme styles follow.
+   Later rules may override earlier rules where selectors overlap.
+   ============================================================ */
+
 /* feedback.css - Feedback Form and User Experience Styles */
 
 /* ============================================================
@@ -5218,4 +5224,545 @@ textarea::placeholder {
 
 #rp-photo-bear-overlay[hidden] {
     display: none !important;
+}
+
+/* ============================================================
+   CAMERA / THEME / FACE-FILTER STYLES
+   Appended from the second stylesheet.
+   ============================================================ */
+
+/* ===== Layout, theme + components ===== */
+:root {
+    --ink: #17382a;
+    --ink-soft: #52665b;
+    --green-1: #4a7c59;
+    --green-2: #2a5d3c;
+    --line: #d5ddd4;
+    --accent: #6366f1;
+    --surface: #ffffff;
+    --radius: 14px;
+}
+* { box-sizing: border-box; }
+body {
+    margin: 0; padding: 16px 16px 40px;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+    color: var(--ink);
+    background:
+        radial-gradient(900px 520px at 12% 8%, rgba(214, 235, 196, 0.65), transparent 62%),
+        radial-gradient(800px 520px at 92% 28%, rgba(220, 245, 236, 0.8), transparent 60%),
+        #f3f5ee;
+    min-height: 100vh;
+}
+.wrap { max-width: 640px; margin: 0 auto; }
+.page { display: none; }
+.page.active { display: block; animation: pageIn 0.35s ease both; }
+@keyframes pageIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Progress stepper */
+.stepper { background: rgba(255,255,255,0.7); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px 8px 12px; margin-bottom: 26px; backdrop-filter: blur(6px); }
+.stepper ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); }
+.step { position: relative; display: grid; justify-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: #8a9a8f; }
+.step::before { content: ''; position: absolute; top: 9px; right: 50%; width: 100%; height: 3px; background: var(--line); border-radius: 2px; }
+.step:first-child::before { display: none; }
+.step .dot { position: relative; z-index: 1; width: 20px; height: 20px; border-radius: 50%; background: #dfe8dc; box-shadow: 0 0 0 4px rgba(223,232,220,0.55); transition: all 0.3s ease; }
+.step.done, .step.current { color: var(--ink); }
+.step.done .dot, .step.current .dot { background: var(--green-1); box-shadow: 0 0 0 4px rgba(74,124,89,0.18); }
+.step.done::before, .step.current::before { background: var(--green-1); }
+.step.current .label { font-weight: 800; }
+.step.current .dot { animation: ring 2.2s ease-out infinite; }
+@keyframes ring { 0% { box-shadow: 0 0 0 3px rgba(74,124,89,0.35); } 100% { box-shadow: 0 0 0 11px rgba(74,124,89,0); } }
+
+/* Page header */
+.page-head { text-align: center; margin-bottom: 18px; }
+.page-head.compact { margin-bottom: 14px; }
+.icon-badge { width: 76px; height: 76px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 20px; background: linear-gradient(145deg, var(--green-1), #1f4a30); box-shadow: 0 14px 28px rgba(31,74,48,0.28); }
+.icon-badge span { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 50%; background: var(--accent); color: #fff; box-shadow: inset 0 0 0 2px rgba(255,255,255,0.25); }
+.icon-badge svg { width: 28px; height: 28px; }
+.page-title { margin: 0; font-size: clamp(1.8rem, 6vw, 2.3rem); font-weight: 800; letter-spacing: -0.03em; color: var(--ink); line-height: 1.15; }
+.subtitle { margin: 8px 0 0; color: var(--ink-soft); font-size: 1.02rem; }
+
+/* Camera */
+.camera-view { position: relative; width: 100%; aspect-ratio: 4 / 3; background: #0b1210; border-radius: 22px; overflow: hidden; margin-top: 4px; box-shadow: 0 18px 40px rgba(23,56,42,0.18), 0 0 0 1px rgba(23,56,42,0.08); }
+.camera-view video { width: 100%; height: 100%; object-fit: cover; display: block; }
+.mirror { transform: scaleX(-1); }
+.corner { position: absolute; z-index: 7; width: 26px; height: 26px; border: 0 solid var(--accent); pointer-events: none; opacity: 0.9; }
+.corner.tl { top: 14px; left: 14px; border-top-width: 3px; border-left-width: 3px; border-top-left-radius: 8px; }
+.corner.tr { top: 14px; right: 14px; border-top-width: 3px; border-right-width: 3px; border-top-right-radius: 8px; }
+.corner.bl { bottom: 14px; left: 14px; border-bottom-width: 3px; border-left-width: 3px; border-bottom-left-radius: 8px; }
+.corner.br { bottom: 14px; right: 14px; border-bottom-width: 3px; border-right-width: 3px; border-bottom-right-radius: 8px; }
+
+/* Buttons: full-width stack. Default = primary, .secondary = white */
+.controls { display: grid; gap: 12px; margin-top: 18px; }
+.controls button, .controls .btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    width: 100%; min-height: 54px; padding: 14px 18px;
+    border: 1px solid transparent; border-radius: var(--radius);
+    background: linear-gradient(135deg, var(--green-1), var(--green-2)); color: #fff;
+    font: inherit; font-size: 1.02rem; font-weight: 800; letter-spacing: 0.01em;
+    cursor: pointer; text-decoration: none;
+    box-shadow: 0 12px 24px rgba(42,93,60,0.25);
+    transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+.controls button svg { width: 20px; height: 20px; flex: none; }
+.controls button:hover:not(:disabled), .controls .btn:hover { transform: translateY(-1px); filter: brightness(1.05); }
+.controls button:active:not(:disabled), .controls .btn:active { transform: translateY(1px); }
+.controls button.secondary, .controls .btn.secondary { background: var(--surface); color: var(--green-2); border-color: var(--line); box-shadow: 0 2px 6px rgba(23,56,42,0.06); }
+.controls button.secondary:hover:not(:disabled), .controls .btn.secondary:hover { border-color: var(--green-1); }
+.controls button:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+:is(.controls button, .controls .btn, .face-filter-card, .toggle):focus-visible { outline: 3px solid rgba(99,102,241,0.55); outline-offset: 2px; }
+.form-alert { display: none; color: #b91c1c; margin: 8px 0 0; text-align: center; }
+
+/* Theme + done pages */
+.result-frame { border-radius: 22px; overflow: hidden; background: #000; box-shadow: 0 18px 40px rgba(23,56,42,0.18); }
+#theme-canvas { display: block; width: 100%; height: auto; }
+.theme-label { margin: 16px 0 8px; color: var(--ink-soft); text-align: center; }
+.theme-grid { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.theme-option { cursor: pointer; text-align: center; padding: 8px; border: 2px solid transparent; border-radius: 14px; background: var(--surface); width: 100px; box-shadow: 0 2px 6px rgba(23,56,42,0.06); transition: transform 0.15s ease, border-color 0.2s ease; }
+.theme-option:hover { transform: translateY(-2px); }
+.theme-option.selected { border-color: var(--green-1); box-shadow: 0 0 0 4px rgba(74,124,89,0.18); }
+.theme-swatch { height: 48px; border-radius: 9px; margin-bottom: 6px; }
+.theme-name { font-size: 0.85rem; font-weight: 700; }
+.final-photo { width: 100%; border-radius: 22px; margin-top: 8px; box-shadow: 0 18px 40px rgba(23,56,42,0.18); }
+
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+/* ===== Face filters ===== */
+.face-detection-status {
+    margin: 12px auto 0;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.face-detection-status.info {
+    color: #475569;
+}
+
+.face-detection-status.loading {
+    color: #1d4ed8;
+}
+
+.face-detection-status.success {
+    color: #047857;
+}
+
+.face-detection-status.error {
+    color: #b91c1c;
+}
+
+
+
+/* Swipeable animated face filter tray - changes made by nick */
+.face-filter-panel {
+    width: min(700px, 100%);
+    margin: 0 auto 18px;
+}
+
+.face-filter-active {
+    min-height: 24px;
+    margin-bottom: 8px;
+    color: #0f766e;
+    font-size: 13px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.face-filter-selector {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 88px;
+    gap: 12px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    padding: 8px max(12px, calc((100% - 88px) / 2)) 12px;
+    border-radius: 8px;
+    touch-action: pan-x;
+}
+
+.face-filter-selector::-webkit-scrollbar {
+    display: none;
+}
+
+.face-filter-card {
+    display: grid;
+    justify-items: center;
+    align-content: center;
+    gap: 7px;
+    min-height: 94px;
+    padding: 10px 8px;
+    border: 2px solid rgba(99, 102, 241, 0.18);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.88);
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+    scroll-snap-align: center;
+    transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.face-filter-card:hover {
+    transform: translateY(-2px);
+    border-color: #6366f1;
+}
+
+.face-filter-card.active {
+    color: #ffffff;
+    border-color: transparent;
+    background: linear-gradient(135deg, #6366f1, #0f766e);
+    box-shadow: 0 16px 28px rgba(79, 70, 229, 0.2);
+    transform: translateY(-3px) scale(1.04);
+}
+
+.face-filter-preview {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 52px;
+    height: 52px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: linear-gradient(145deg, #ecfeff, #f8fafc);
+    color: #64748b;
+    font-size: 13px;
+    box-shadow: inset 0 0 0 2px rgba(15, 118, 110, 0.08);
+}
+
+.face-filter-card.active .face-filter-preview {
+    background: rgba(255, 255, 255, 0.18);
+    color: #ffffff;
+    box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.36);
+}
+
+
+
+
+.face-filter-preview.flower-crown::before {
+    content: '';
+    width: 42px;
+    height: 18px;
+    border-radius: 999px 999px 0 0;
+    background:
+        radial-gradient(circle at 11% 58%, #f472b6 0 5px, transparent 6px),
+        radial-gradient(circle at 30% 34%, #fde047 0 5px, transparent 6px),
+        radial-gradient(circle at 50% 55%, #fb7185 0 6px, transparent 7px),
+        radial-gradient(circle at 70% 34%, #a78bfa 0 5px, transparent 6px),
+        radial-gradient(circle at 89% 58%, #34d399 0 5px, transparent 6px);
+}
+
+.face-filter-preview.halo::before {
+    content: '';
+    width: 38px;
+    height: 15px;
+    border: 5px solid #facc15;
+    border-radius: 999px;
+    box-shadow: 0 0 16px rgba(250, 204, 21, 0.7);
+    animation: filterFloat 1.8s ease-in-out infinite;
+}
+
+.face-filter-preview.blush::before,
+.face-filter-preview.blush::after {
+    content: '';
+    position: absolute;
+    width: 17px;
+    height: 12px;
+    top: 27px;
+    border-radius: 999px;
+    background: rgba(244, 114, 182, 0.74);
+}
+
+.face-filter-preview.blush::before {
+    left: 8px;
+}
+
+.face-filter-preview.blush::after {
+    right: 8px;
+}
+
+.face-filter-preview.party::before {
+    content: '';
+    width: 34px;
+    height: 34px;
+    background:
+        linear-gradient(135deg, transparent 48%, #111827 49% 55%, transparent 56%),
+        conic-gradient(from 0.1turn, #22c55e, #60a5fa, #f472b6, #facc15, #22c55e);
+    clip-path: polygon(50% 0, 86% 100%, 14% 100%);
+    animation: filterWiggle 1.1s ease-in-out infinite;
+}
+
+/* Extra face filter preview pack (DONE BY NICK) */
+.face-filter-preview.rp-shades::before {
+    content: 'RP';
+    display: grid;
+    place-items: center;
+    width: 42px;
+    height: 18px;
+    border: 3px solid #0f766e;
+    border-radius: 6px;
+    background: #111827;
+    color: #ffffff;
+    font-size: 10px;
+    font-weight: 900;
+    box-shadow: 0 0 0 2px rgba(17, 24, 39, 0.22);
+}
+
+.face-filter-preview.leaf-crown::before {
+    content: '';
+    width: 44px;
+    height: 18px;
+    background:
+        radial-gradient(ellipse at 10% 70%, #16a34a 0 6px, transparent 7px),
+        radial-gradient(ellipse at 28% 35%, #34d399 0 7px, transparent 8px),
+        radial-gradient(ellipse at 50% 65%, #22c55e 0 7px, transparent 8px),
+        radial-gradient(ellipse at 72% 35%, #65a30d 0 7px, transparent 8px),
+        radial-gradient(ellipse at 90% 70%, #16a34a 0 6px, transparent 7px);
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+
+.face-filter-preview.graduation::before {
+    content: '';
+    width: 42px;
+    height: 28px;
+    background:
+        linear-gradient(#0f766e 0 0) center 18px / 23px 8px no-repeat,
+        linear-gradient(135deg, transparent 20%, #111827 21% 79%, transparent 80%);
+}
+
+.face-filter-preview.graduation::after {
+    content: '';
+    position: absolute;
+    right: 10px;
+    top: 25px;
+    width: 5px;
+    height: 12px;
+    border-radius: 999px;
+    background: #facc15;
+}
+
+.face-accessory-canvas {
+    position: absolute;
+    inset: 0;
+    z-index: 6;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* CROWN PROP preview icon */
+.face-filter-preview.rp-crown::before {
+    content: '';
+    width: 44px;
+    height: 24px;
+    background: url('propsforphototaking/rp-crown.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.fingerheart::before {
+    content: '';
+    width: 50px;
+    height: 40px;
+    background: url('propsforphototaking/fingerheart.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rp-mouse-ears::before {
+    content: '';
+    width: 50px;
+    height: 30px;
+    background: url('propsforphototaking/rp-mouse-ears.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rp-sticker-sunglasses::before {
+    content: '';
+    width: 50px;
+    height: 30px;
+    background: url('propsforphototaking/rp-sticker-sunglasses.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rpfutureready::before {
+    content: '';
+    width: 50px;
+    height: 30px;
+    background: url('propsforphototaking/rp-future-ready.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rp-go-green::before {
+    content: '';
+    width: 45px;
+    height: 35px;
+    background: url('propsforphototaking/RPGoGreenGoRP!.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+
+/* ===== Hand gestures ===== */
+/* Hand gesture props: instruction line + "gesture detected" badge */
+.gesture-hint {
+    display: inline-block;
+    margin: 10px 0 0;
+    padding: 8px 16px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #ecfdf5, #f0fdf4);
+    border: 2px solid rgba(22, 163, 74, 0.28);
+    color: #166534;
+    font-size: 14px;
+    font-weight: 800;
+}
+.gesture-hint[data-state="error"] { background: #fef2f2; border-color: rgba(185, 28, 28, 0.3); color: #b91c1c; }
+.gesture-hint[data-state="loading"] { background: #eff6ff; border-color: rgba(29, 78, 216, 0.25); color: #1d4ed8; }
+
+.gesture-indicator {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 8;
+    padding: 7px 14px;
+    border-radius: 999px;
+    background: rgba(22, 163, 74, 0.92);
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 800;
+    opacity: 0;
+    transform: scale(0.6);
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.gesture-indicator.show { opacity: 1; transform: scale(1); }
+
+.gesture-debug { margin: 6px 0 0; font-size: 12px; color: #64748b; min-height: 16px; }
+
+
+
+
+@keyframes filterFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-3px); } }
+@keyframes filterWiggle { 0%,100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+
+/* ===== Status, tip line, toggles, debug ===== */
+.face-detection-status { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 22px; margin: 4px auto 14px; font-size: 14px; font-weight: 700; transition: opacity 0.6s ease; }
+.face-detection-status::before { content: ''; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
+.face-detection-status.loading::before { animation: blink 1s ease-in-out infinite; }
+@keyframes blink { 50% { opacity: 0.25; } }
+.face-detection-status.fade { opacity: 0; }
+
+.face-filter-panel { width: 100%; margin: 0 0 14px; }
+.face-filter-active { font-size: 13px; letter-spacing: 0.02em; }
+.face-filter-selector { -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+
+.gesture-hint { display: block; width: fit-content; max-width: 100%; margin: 14px auto 0; padding: 7px 16px; font-size: 13px; text-align: center; }
+.gesture-indicator { left: 50%; top: 16px; transform: translateX(-50%) scale(0.6); }
+.gesture-indicator.show { transform: translateX(-50%) scale(1); }
+
+.toggle-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; }
+.toggle { display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 46px; padding: 10px 12px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--surface); color: var(--ink); font: inherit; font-size: 0.95rem; font-weight: 800; cursor: pointer; transition: all 0.2s ease; }
+.toggle::after { content: 'Off'; padding: 2px 8px; border-radius: 999px; background: #e5e7eb; color: #6b7280; font-size: 11px; }
+.toggle[aria-pressed="true"] { border-color: var(--green-1); background: #ecf6ee; color: var(--green-2); box-shadow: 0 0 0 3px rgba(74,124,89,0.14); }
+.toggle[aria-pressed="true"]::after { content: 'On'; background: var(--green-1); color: #fff; }
+
+.debug-panel { display: none; }
+.debug .debug-panel { display: block; }
+.debug .gesture-debug { display: block; }
+
+/* ===== ML effects: live compositor canvas + beauty/background card ===== */
+.fx-canvas { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; display: none; pointer-events: none; }
+.camera-view.fx-on .fx-canvas { display: block; }
+.camera-view.fx-on video { opacity: 0; }
+
+.fx-card { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 14px; padding: 12px 14px; background: rgba(255,255,255,0.85); border: 1px solid var(--line); border-radius: var(--radius); }
+.fx-card label { display: grid; gap: 6px; font-size: 13px; font-weight: 800; color: var(--green-2); }
+.fx-card select { width: 100%; min-height: 44px; padding: 8px 10px; border: 2px solid #a7e3d0; border-radius: 10px; background: #fff; color: var(--ink); font: inherit; font-size: 0.95rem; font-weight: 800; cursor: pointer; }
+.fx-card select:focus-visible { outline: 3px solid rgba(99,102,241,0.55); outline-offset: 2px; }
+@media (max-width: 440px) { .fx-card { grid-template-columns: 1fr; } }
+
+
+/* ===== Keep only the requested face-filter options =====
+   Keep the first card (No Filter), plus these named props.
+   All other filter cards are hidden from the selector tray.
+*/
+.face-filter-card:not(:first-child):not(:has(
+    .face-filter-preview.rp-crown,
+    .face-filter-preview.rpfutureready,
+    .face-filter-preview.rp-sticker-sunglasses,
+    .face-filter-preview.rp-go-green,
+    .face-filter-preview.fingerheart,
+    .face-filter-preview.rp-mouse-ears
+)) {
+    display: none !important;
+}
+.face-filter-preview.rp-crown::before {
+    content: '';
+    width: 44px;
+    height: 24px;
+    background: url('propsforphototaking/rp-crown.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.fingerheart::before {
+    content: '';
+    width: 50px;
+    height: 40px;
+    background: url('propsforphototaking/fingerheart.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rp-mouse-ears::before {
+    content: '';
+    width: 50px;
+    height: 30px;
+    background: url('propsforphototaking/rp-mouse-ears.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rp-sticker-sunglasses::before {
+    content: '';
+    width: 50px;
+    height: 30px;
+    background: url('propsforphototaking/rp-sticker-sunglasses.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rpfutureready::before {
+    content: '';
+    width: 50px;
+    height: 30px;
+    background: url('propsforphototaking/rp-future-ready.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+.face-filter-preview.rp-go-green::before {
+    content: '';
+    width: 45px;
+    height: 35px;
+    background: url('propsforphototaking/RPGoGreenGoRP!.png') center / contain no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+/* ===== Face filter preview icons (absolute paths) ===== */
+.face-filter-preview.rp-crown::before,
+.face-filter-preview.fingerheart::before,
+.face-filter-preview.rp-mouse-ears::before,
+.face-filter-preview.rp-sticker-sunglasses::before,
+.face-filter-preview.rpfutureready::before,
+.face-filter-preview.rp-go-green::before {
+    content: '';
+    background-position: center;
+    background-size: contain;
+    background-repeat: no-repeat;
+    animation: filterFloat 1.6s ease-in-out infinite;
+}
+
+.face-filter-preview.rp-crown::before {
+    width: 44px; height: 24px;
+    background-image: url('/assets/propsforphototaking/rp-crown.png');
+}
+.face-filter-preview.fingerheart::before {
+    width: 50px; height: 40px;
+    background-image: url('/assets/propsforphototaking/fingerheart.png');
+}
+.face-filter-preview.rp-mouse-ears::before {
+    width: 50px; height: 30px;
+    background-image: url('/assets/propsforphototaking/rp-mouse-ears.png');
+}
+.face-filter-preview.rp-sticker-sunglasses::before {
+    width: 50px; height: 30px;
+    background-image: url('/assets/propsforphototaking/rp-sticker-sunglasses.png');
+}
+.face-filter-preview.rpfutureready::before {
+    width: 50px; height: 30px;
+    background-image: url('/assets/propsforphototaking/rp-future-ready.png');
+}
+.face-filter-preview.rp-go-green::before {
+    width: 45px; height: 35px;
+    background-image: url('/assets/propsforphototaking/RPGoGreenGoRP%21.png');
 }
