@@ -9076,11 +9076,7 @@ function arResetForNextVisitor() {
     };
 });
 
-// ---------------------------------------------------------------------------
-// 14) Start (kept at the very end so every const above is already defined)
-//     Registered after feedback.js's own DOMContentLoaded handlers, so the swipe tray
-//     is already wired up when the new filter cards are added.
-// ---------------------------------------------------------------------------
+
 arOnReady(() => {
     arEnsureStyles();
     arInjectFilterCards();
