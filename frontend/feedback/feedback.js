@@ -165,9 +165,8 @@
 // 11. PLEDGEBOARD NAVIGATION
 //     function viewPledgeboard()       - Navigate to pledgeboard page (DONE BY PRETI)
 //
-// 12. FORM UI CONFIGURATION
-//     async function applyFormUIConfig() - Load and apply form UI settings from server (DONE BY NADH)
-//     async function loadCountdownTimer() - Load countdown timer setting from server (DONE BY BERNISSA)
+
+
 
 // ==================== 1. GLOBAL VARIABLES & CONSTANTS ====================
 const LONG_TERM_RETENTION = 'longterm';
