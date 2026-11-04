@@ -155,15 +155,7 @@
 //    function goBackToFeedback()      - Pledge to Feedback 
 //    function goBackToPledge()        - Photo/Upload to Pledge 
 //
-// 10. EVENT LISTENERS & CLEANUP
-//     window.addEventListener('beforeunload') - Clean up camera and timers 
-//     document.addEventListener('click') - Reset inactivity timer (DONE BY PRETI)
-//     document.addEventListener('keypress') - Reset inactivity timer (DONE BY PRETI)
-//     document.addEventListener('mousemove') - Reset inactivity timer (DONE BY PRETI)
-//     document.addEventListener('touchstart') - Reset inactivity timer (DONE BY PRETI)
-//
 
-//
 
 
 
