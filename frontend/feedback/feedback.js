@@ -155,19 +155,9 @@
 //    function goBackToFeedback()      - Pledge to Feedback 
 //    function goBackToPledge()        - Photo/Upload to Pledge 
 //
-// 10. EVENT LISTENERS & CLEANUP
-//     window.addEventListener('beforeunload') - Clean up camera and timers 
-//     document.addEventListener('click') - Reset inactivity timer (DONE BY PRETI)
-//     document.addEventListener('keypress') - Reset inactivity timer (DONE BY PRETI)
-//     document.addEventListener('mousemove') - Reset inactivity timer (DONE BY PRETI)
-//     document.addEventListener('touchstart') - Reset inactivity timer (DONE BY PRETI)
-//
-// 11. PLEDGEBOARD NAVIGATION
-//     function viewPledgeboard()       - Navigate to pledgeboard page (DONE BY PRETI)
-//
-// 12. FORM UI CONFIGURATION
-//     async function applyFormUIConfig() - Load and apply form UI settings from server (DONE BY NADH)
-//     async function loadCountdownTimer() - Load countdown timer setting from server (DONE BY BERNISSA)
+
+
+
 
 // ==================== 1. GLOBAL VARIABLES & CONSTANTS ====================
 const LONG_TERM_RETENTION = 'longterm';
@@ -203,6 +193,8 @@ let kioskParametersLoadPromise = null;
 let isMirrored = false; // to invert camera done by nick
 let beautyFilterEnabled = true; // beauty filter toggle done by nick
 let beautyFilterStrength = 'medium'; // visitor beauty filter strength - changes made by nick
+let visitorCountdownEnabled = true;  // Countdown toggle on photo page
+let photoStripEnabled = false;       // Photo strip toggle on photo page
 let selectedFaceAccessory = 'none';
 let faceLandmarker = null;
 let faceLandmarkerLoadPromise = null;
@@ -1974,13 +1966,13 @@ async function loadDynamicQRCode() {
         const kioskId = window.location.hostname || 'default-kiosk';
         const response = await fetch(`/api/kiosk/generate-qr?kiosk_id=${encodeURIComponent(kioskId)}`);
         const data = await response.json();
-        
+
         if (data.success && data.qrSvg) {
             const qrContainer = document.querySelector('.qr-code');
             if (qrContainer) {
                 // Replace the dummy QR code with dynamic one
                 qrContainer.innerHTML = data.qrSvg;
-                
+
                 // Update the description with the actual IP
                 const qrDescription = document.querySelector('.qr-description');
                 if (qrDescription) {
@@ -2066,32 +2058,32 @@ function detectDeviceType() {
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     currentDevice = isMobile ? 'mobile' : 'desktop';
     console.log('Detected device:', currentDevice);
-    
+
     // Update UI classes for device-specific styling
     document.body.classList.add(`device-${currentDevice}`);
 }
 
 // Initialize page when DOM is loaded
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     applyFormUIConfig();
     kioskParametersLoadPromise = loadKioskParameters();
-    
+
     // Check if mobile
     const isMobile = window.innerWidth <= 768;
-    
+
     if (isMobile) {
         // Add class to body to show content after scaling is ready
         setTimeout(() => {
             document.body.classList.add('scale-applied');
-            
+
             // Force reflow to ensure smooth transition
             void document.body.offsetHeight;
         }, 50);
     }
-    
+
     // Handle page transitions
-    const observer = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) {
+    const observer = new MutationObserver(function (mutations) {
+        mutations.forEach(function (mutation) {
             if (mutation.type === 'childList') {
                 // When page changes, ensure scaling is maintained
                 if (isMobile && !document.body.classList.contains('scale-applied')) {
@@ -2100,7 +2092,7 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     });
-    
+
     // Observe body for page changes
     observer.observe(document.body, {
         childList: true,
@@ -2108,28 +2100,28 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Load dynamic QR code
     loadDynamicQRCode();
     startQrRefreshLoop();
     startLandingVisitorCountLoop(); // Start-screen live visitor count (DONE BY NICK)
     initializeProgressIndicators();
     updateCaptureModeButtons();
-    
+
     // Detect device type
     detectDeviceType();
-    
+
     const pledgeTextarea = document.getElementById('pledge-text');
     if (pledgeTextarea) {
-        pledgeTextarea.addEventListener('input', function() {
+        pledgeTextarea.addEventListener('input', function () {
             document.getElementById('char-count').textContent = this.value.length;
-    updatePledgeCoach();
-    resetInactivityTimer(); // Reset timer on user input
+            updatePledgeCoach();
+            resetInactivityTimer(); // Reset timer on user input
         });
     }
 
     document.querySelectorAll('input[name="pledge-topics"]').forEach((topicInput) => {
-        topicInput.addEventListener('change', function() {
+        topicInput.addEventListener('change', function () {
             syncPledgeTopicField();
             updatePledgeCoach();
             resetInactivityTimer();
@@ -2143,11 +2135,8 @@ document.addEventListener('DOMContentLoaded', function() {
     if (captureBtn) {
         captureBtn.addEventListener('click', capturePhoto);
     }
-    //for invert camera done by nick
-    const invertBtn = document.getElementById('invert-btn');
-if (invertBtn) {
-    invertBtn.addEventListener('click', toggleMirror);
-}
+    const mirrorBtn = document.getElementById('mirror-btn');
+    if (mirrorBtn) mirrorBtn.addEventListener('click', toggleMirror);
 
     // Beauty filter setting done by nick
     setupBeautyFilterSettings();
@@ -2157,7 +2146,7 @@ if (invertBtn) {
 
     // Load overlay options from database
     loadOverlayOptions();
-    
+
     // Load feedback questions from database
     loadFeedbackQuestions();
 
@@ -2193,7 +2182,7 @@ function startInactivityTimer() {
     inactivityTimer = setTimeout(() => {
         returnToLandingPage();
     }, INACTIVITY_TIMEOUT);
-    
+
     console.log('Inactivity timer started: 1 minute');
 }
 
@@ -2240,13 +2229,13 @@ function returnToLandingPage() {
     console.log('Inactivity timeout reached - returning to landing page');
     // Reset boomerang state on kiosk timeout - changes made by nick
     stopBoomerangPreview();
-    
+
     // Stop camera stream if active
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
     }
-    
+
     // Clear any existing timer
     if (inactivityTimer) {
         clearTimeout(inactivityTimer);
@@ -2262,7 +2251,7 @@ function returnToLandingPage() {
     }
     hideIdleWarning();
     clearValidationMessages();
-    
+
     // Reset all data
     selectedRetention = LONG_TERM_RETENTION;
     selectedTheme = 'nature';
@@ -2279,25 +2268,25 @@ function returnToLandingPage() {
     setupKeepsakeDownload({}); // Clear previous visitor download state (DONE BY NICK)
     updateFaceAccessoryButtons();
     scrollSelectedFaceFilterIntoView('auto');
-    
+
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
     syncPledgeTopicField();
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
-    
+
     // Reset character counter if it exists
     const charCount = document.getElementById('char-count');
     if (charCount) charCount.textContent = '0';
-    
+
     // Reset proceed button if it exists
     const proceedBtn = document.getElementById('proceedBtn');
     if (proceedBtn) proceedBtn.disabled = true;
-    
+
     showLandingPages();
-    
+
     // Show notification
     showTimeoutNotification();
-    
+
     console.log('✅ Successfully returned to landing page');
 }
 
@@ -2328,9 +2317,9 @@ function showTimeoutNotification() {
             <span>Session timed out. Please start again.</span>
         </div>
     `;
-    
+
     document.body.appendChild(notification);
-    
+
     // Remove notification after 5 seconds
     setTimeout(() => {
         if (notification.parentNode) {
@@ -2347,7 +2336,7 @@ async function loadFeedbackQuestions() {
     try {
         const response = await fetch('/api/feedback/questions');
         const data = await response.json();
-        
+
         if (data.success && data.questions.length > 0) {
             updateFeedbackForm(data.questions);
         } else {
@@ -2367,27 +2356,27 @@ function updateFeedbackForm(questions) {
         console.error('Questions container not found');
         return;
     }
-    
+
     // Clear container
     container.innerHTML = '';
-    
+
     if (!questions || questions.length === 0) {
         console.log('No questions found');
         showNoQuestionsMessage();
         return;
     }
-    
+
     console.log(`Loading ${questions.length} questions from database`);
-    
+
     // Add ALL questions from database
     questions.forEach((question) => {
         if (!question.is_active) return;
-        
-        const questionNumber = question.display_order; 
+
+        const questionNumber = question.display_order;
         const questionElement = createQuestionElement(question, questionNumber);
         container.appendChild(questionElement);
     });
-    
+
     // Add event listeners
     setTimeout(() => {
         initializeQuestionEventListeners();
@@ -2399,15 +2388,15 @@ function createQuestionElement(question, questionNumber) {
     const questionGroup = document.createElement('div');
     questionGroup.className = 'question-group';
     questionGroup.setAttribute('data-question-id', question.id);
-    
+
     const requiredIndicator = question.is_required ? ' *' : '';
     const translatedQuestionText = translateKnownDynamicText(question.question_text);
     const answerPlaceholder = getDynamicLanguageText().answerPlaceholder;
-    
+
     let questionHTML = `
         <label class="question-label" data-question-number="${questionNumber}" data-original-text="${question.question_text}" data-required="${question.is_required ? 'true' : 'false'}">${questionNumber}. ${translatedQuestionText}${requiredIndicator}</label>
     `;
-    
+
     // Generate appropriate input based on question type
     switch (question.question_type) {
         case 'text':
@@ -2422,7 +2411,7 @@ function createQuestionElement(question, questionNumber) {
                 ></textarea>
             `;
             break;
-            
+
         case 'yesno':
             questionHTML += `
                 <div style="display: flex; gap: 15px; margin-top: 10px;">
@@ -2448,7 +2437,7 @@ function createQuestionElement(question, questionNumber) {
                 </div>
             `;
             break;
-            
+
         case 'rating':
             questionHTML += `
                 <div class="rating-buttons" style="margin-top: 10px;">
@@ -2473,7 +2462,7 @@ function createQuestionElement(question, questionNumber) {
                 >
             `;
             break;
-            
+
         case 'choice':
             if (question.options && question.options.length > 0) {
                 questionHTML += `
@@ -2494,7 +2483,7 @@ function createQuestionElement(question, questionNumber) {
                 `;
             }
             break;
-            
+
         default:
             questionHTML += `
                 <textarea 
@@ -2507,7 +2496,7 @@ function createQuestionElement(question, questionNumber) {
                 ></textarea>
             `;
     }
-    
+
     questionGroup.innerHTML = questionHTML;
     return questionGroup;
 }
@@ -2518,16 +2507,16 @@ function selectQuestionRating(questionId, rating, element) {
     const questionGroup = element.closest('.question-group');
     const buttons = questionGroup.querySelectorAll('.question-rating');
     buttons.forEach(btn => btn.classList.remove('selected'));
-    
+
     // Add selected class to clicked button
     element.classList.add('selected');
-    
+
     // Update the hidden input
     const hiddenInput = document.getElementById(`q${questionId}`);
     if (hiddenInput) {
         hiddenInput.value = rating;
     }
-    
+
     console.log(`Selected rating ${rating} for question ${questionId}`);
 }
 
@@ -2541,7 +2530,7 @@ function showNoQuestionsMessage() {
     const container = document.getElementById('questions-container');
     if (!container) return;
     const dynamicText = getDynamicLanguageText();
-    
+
     container.innerHTML = `
         <div style="text-align: center; padding: 40px; color: #64748b;">
             <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" style="margin-bottom: 16px;">
@@ -2552,7 +2541,7 @@ function showNoQuestionsMessage() {
             <p>${dynamicText.noQuestionsDescription}</p>
         </div>
     `;
-    
+
     // Disable submit button
     const submitBtn = document.querySelector('#feedback-page .consent-button');
     if (submitBtn) {
@@ -2585,33 +2574,33 @@ function validateRequiredQuestions() {
     }
 
     const requiredQuestions = document.querySelectorAll('#questions-container .question-group[data-question-id]');
-    
+
     for (const question of requiredQuestions) {
         const questionId = question.getAttribute('data-question-id');
         const isRequired = question.querySelector('[required]') !== null;
-        
+
         if (isRequired) {
             const questionType = getQuestionType(question);
             let hasAnswer = false;
-            
+
             switch (questionType) {
                 case 'text':
                     const textarea = question.querySelector('textarea');
                     hasAnswer = textarea && textarea.value.trim() !== '';
                     break;
-                    
+
                 case 'yesno':
                 case 'choice':
                     const selectedRadio = question.querySelector('input[type="radio"]:checked');
                     hasAnswer = selectedRadio !== null;
                     break;
-                    
+
                 case 'rating':
                     const hiddenInput = question.querySelector('input[type="hidden"]');
                     hasAnswer = hiddenInput && hiddenInput.value !== '';
                     break;
             }
-            
+
             if (!hasAnswer) {
                 // Scroll to the question and highlight it
                 question.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2625,17 +2614,17 @@ function validateRequiredQuestions() {
                 }
                 error.textContent = `Please answer ${label}.`;
                 error.style.display = 'block';
-                
+
                 // Remove highlight after 3 seconds
                 setTimeout(() => {
                     question.classList.remove('has-error');
                 }, 3000);
-                
+
                 return false;
             }
         }
     }
-    
+
     return true;
 }
 
@@ -2752,8 +2741,8 @@ function updatePledgeCoach() {
         feedback.textContent = selectedTopics.length > 1
             ? `Good range. You selected ${selectedTopics.length} focus areas; write one action that connects them.`
             : topic
-            ? 'Good topic. Start with one action, then make it specific enough to try this week.'
-            : 'Choose a focus area or type a pledge. The coach will make it more specific.';
+                ? 'Good topic. Start with one action, then make it specific enough to try this week.'
+                : 'Choose a focus area or type a pledge. The coach will make it more specific.';
     } else if (wordCount < 4) {
         feedback.textContent = 'Nice start. Add a clear action so you know exactly what to do.';
     } else if (!hasPledgeActionQuantity(text) || !hasPledgeTimeframe(text)) {
@@ -2794,43 +2783,43 @@ function applyPledgeCoachSuggestion() {
 function submitFeedback(event) {
     event.preventDefault();
     clearValidationMessages();
-    
+
     // Collect all answers
     userData.answers = {};
-    
+
     const allQuestions = document.querySelectorAll('#questions-container .question-group[data-question-id]');
     allQuestions.forEach(question => {
         const questionId = question.getAttribute('data-question-id');
         const questionType = getQuestionType(question);
-        
+
         let answerValue = '';
-        
+
         switch (questionType) {
             case 'text':
                 const textarea = question.querySelector('textarea');
                 answerValue = textarea ? textarea.value : '';
                 break;
-                
+
             case 'yesno':
                 const selectedRadio = question.querySelector('input[type="radio"]:checked');
                 answerValue = selectedRadio ? selectedRadio.value : '';
                 break;
-                
+
             case 'rating':
                 const hiddenInput = question.querySelector('input[type="hidden"]');
                 answerValue = hiddenInput ? hiddenInput.value : '';
                 break;
-                
+
             case 'choice':
                 const selectedChoice = question.querySelector('input[type="radio"]:checked');
                 answerValue = selectedChoice ? selectedChoice.value : '';
                 break;
         }
-        
+
         userData.answers[questionId] = answerValue;
         userData[`q${questionId}`] = answerValue; // for backward compatibility
     });
-    
+
     // Validate required questions
     if (!validateRequiredQuestions()) {
         showFormAlert('feedback-form-alert', getDynamicLanguageText().requiredQuestion);
@@ -2858,7 +2847,7 @@ function submitDetails(event) {
     const emailInput = document.getElementById('user-email');
     userData.name = nameInput.value.trim();
     userData.email = emailInput.value.trim();
-    
+
     if (rules.nameRequired !== false && !userData.name) {
         showFieldError('user-name', 'Please enter your name so we can add it to your submission.');
         nudgeRpBear('Start with your name here. Then we can keep moving.');
@@ -3116,7 +3105,7 @@ async function handlePhotoUpload(event) {
         previewContainer.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
         resetInactivityTimer();
-        
+
     } catch (error) {
         console.error('Face detection failed for uploaded image:', error);
         event.target.value = '';
@@ -3571,6 +3560,85 @@ async function captureBoomerangIfFaceDetected() {
     }
 }
 
+let photoStripDataUrl = null; // remembers which photoData is a strip (auto-false after any retake/upload)
+function shouldContainPhoto(dataUrl) {
+    return Boolean(photoStripDataUrl) && dataUrl === photoStripDataUrl;
+}
+
+async function captureStripIfFaceDetected() {
+    const STRIP_SHOTS = 3;          // 1 x 3
+    const STRIP_GAP_MS = 1200;
+    const CELL_ASPECT = 4 / 3;      // shape of each photo in the strip (like your sample)
+    const CELL_OUT_WIDTH = 640;     // output size of each photo, keeps the upload small
+    try {
+        updateFaceDetectionStatus('Checking for face...', 'loading');
+        const faceDetection = await detectFaceInCurrentFrame();
+        if (!faceDetection) {
+            updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
+            showVisitorNotice('photo-form-alert', 'No face detected. Please position your face clearly in the camera frame and capture again.', 'I could not see a face clearly. Move into the frame and try again.');
+            return false;
+        }
+
+        const shots = [];
+        for (let i = 0; i < STRIP_SHOTS; i++) {
+            updateFaceDetectionStatus(`Photo ${i + 1} of ${STRIP_SHOTS}...`, 'loading');
+            const landmarks = await getCurrentFaceAccessoryLandmarks();
+            shots.push(captureVideoFrameDataUrl(faceDetection, landmarks));
+            if (i < STRIP_SHOTS - 1) await wait(STRIP_GAP_MS);
+        }
+
+        const images = await Promise.all(shots.map(src => loadImageElement(src)));
+        const srcW = images[0].naturalWidth;
+        const srcH = images[0].naturalHeight;
+
+        // centre-crop each shot to CELL_ASPECT
+        let cropW = srcW;
+        let cropH = srcW / CELL_ASPECT;
+        if (cropH > srcH) { cropH = srcH; cropW = srcH * CELL_ASPECT; }
+        const cropX = (srcW - cropW) / 2;
+        const cropY = (srcH - cropH) / 2;
+
+        const cellW = CELL_OUT_WIDTH;
+        const cellH = Math.round(CELL_OUT_WIDTH / CELL_ASPECT);
+        const gap = 12;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = cellW + gap * 2;
+        canvas.height = cellH * STRIP_SHOTS + gap * (STRIP_SHOTS + 1);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        images.forEach((img, i) => {
+            ctx.drawImage(img, cropX, cropY, cropW, cropH, gap, gap + i * (cellH + gap), cellW, cellH);
+        });
+
+        photoData = canvas.toDataURL('image/png');
+        photoStripDataUrl = photoData;
+        userData.photoSkipped = false;
+        userData.captureMode = 'photo';
+        boomerangFrames = [];
+        clearRestorableBoomerang();
+        userData.processedBoomerangFrames = null;
+        userData.boomerangFrameDelayMs = null;
+        userData.boomerangQuality = null;
+        stopFaceAccessoryPreview();
+
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+            stream = null;
+        }
+
+        updateFaceDetectionStatus('Photo strip captured.', 'success');
+        cheerRpBear('Photo strip captured. Let us pick a frame.');
+        continueToStyle();
+        return true;
+    } catch (error) {
+        console.error('Photo strip capture failed:', error);
+        updateFaceDetectionStatus('Photo strip failed. Please try again.', 'error');
+        showVisitorNotice('photo-form-alert', `Photo strip failed: ${error.message}`, 'The photo strip stumbled. Let us try again.');
+        return false;
+    }
+}
 //Done by Yu Kang - Capture photo only when a face is detected
 function getBeautyFilterPreset() {
     return BEAUTY_FILTER_PRESETS[beautyFilterStrength] || BEAUTY_FILTER_PRESETS.medium;
@@ -3592,7 +3660,7 @@ function setBeautyFilterSetting(value) {
 function updateBeautyFilterSettings() {
     const video = document.getElementById('video');
     const settingValue = beautyFilterEnabled ? beautyFilterStrength : 'off';
-    const settingControls = document.querySelectorAll('#beauty-filter-setting, #upload-beauty-filter-setting');
+    const settingControls = document.querySelectorAll('#beauty-select, #beauty-filter-setting, #upload-beauty-filter-setting');
     userData.beautyFilterStrength = settingValue; // Store visitor beauty setting for Nick analytics (DONE BY NICK)
 
     if (video) {
@@ -3605,7 +3673,7 @@ function updateBeautyFilterSettings() {
 }
 
 function setupBeautyFilterSettings() {
-    const settingControls = document.querySelectorAll('#beauty-filter-setting, #upload-beauty-filter-setting');
+    const settingControls = document.querySelectorAll('#beauty-select, #beauty-filter-setting, #upload-beauty-filter-setting');
     settingControls.forEach((control) => {
         control.addEventListener('change', () => {
             setBeautyFilterSetting(control.value);
@@ -3629,7 +3697,7 @@ async function initializeCamera() {
 
     try {
         console.log('Initializing camera for device:', currentDevice);
-        
+
         // Stop any existing stream
         if (stream) {
             stream.getTracks().forEach(track => track.stop());
@@ -3638,11 +3706,11 @@ async function initializeCamera() {
 
         // Get camera stream with device-specific constraints
         const constraints = {
-            video: { 
+            video: {
                 facingMode: 'user',
                 width: { ideal: currentDevice === 'mobile' ? 720 : 1280 },
                 height: { ideal: currentDevice === 'mobile' ? 1280 : 720 }
-            } 
+            }
         };
 
         stream = await navigator.mediaDevices.getUserMedia(constraints);
@@ -3659,11 +3727,11 @@ async function initializeCamera() {
         document.getElementById('camera-container').style.display = 'block';
 
         console.log('Camera initialized for', currentDevice);
-        
+
         // Add event listener to video for user interaction
         video.addEventListener('click', resetInactivityTimer);
         setRpBearSpeech('Camera is ready. Try a filter, then tap Capture when you like the look.', true);
-        
+
     } catch (error) {
         console.error('Camera error:', error);
         nudgeRpBear('I could not open the camera. Check permission or ask a staff member.');
@@ -3699,7 +3767,7 @@ async function capturePhoto() {
         const captureBtn = document.getElementById('capture-btn');
         const countdownOverlay = document.getElementById('countdown-overlay');
         const countdownText = document.getElementById('countdown-text');
-        
+
         if (!stream) {
             showVisitorNotice('photo-form-alert', 'Camera not ready. Please wait for camera to initialize.', 'Camera is still warming up. Give it a moment, then try again.');
             return;
@@ -3707,22 +3775,25 @@ async function capturePhoto() {
 
         // Use selected capture mode after countdown finishes - changes made by nick
         const runSelectedCapture = () => {
-            return captureMode === 'boomerang'
-                ? captureBoomerangIfFaceDetected()
-                : capturePhotoIfFaceDetected();
+            if (captureMode === 'boomerang') return captureBoomerangIfFaceDetected();
+            return photoStripEnabled ? captureStripIfFaceDetected() : capturePhotoIfFaceDetected();
         };
 
         // Disable capture button during countdown
         captureBtn.disabled = true;
         setRpBearSpeech(captureMode === 'boomerang' ? 'Hold still. I am recording your boomerang.' : 'Smile. I am getting your photo ready.', true);
-        
+
         // Load countdown from backend if not yet loaded
         if (countdownSeconds === null) {
             await loadCountdownTimer();
         }
-        
+
         let countdown = Number.isInteger(countdownSeconds) ? countdownSeconds : 0;
-        
+        if (!visitorCountdownEnabled) countdown = 0;
+        if (photoStripEnabled && captureMode !== 'boomerang') countdown = 0;   // strip runs its own 3-2-1 per shot
+
+        if (!visitorCountdownEnabled) countdown = 0;
+
         // If admin set to 0, take photo immediately (no countdown overlay)
         if (countdown === 0) {
 
@@ -3731,7 +3802,7 @@ async function capturePhoto() {
             captureBtn.disabled = false;
             return;
         }
-        
+
         // Show countdown overlay
         countdownText.textContent = countdown;
         countdownOverlay.style.display = 'flex';
@@ -3739,21 +3810,21 @@ async function capturePhoto() {
 
         const countdownInterval = setInterval(async () => {
             countdown--;
-            
+
             if (countdown <= 0) {
                 clearInterval(countdownInterval);
                 countdownOverlay.style.display = 'none';
                 console.log('Countdown finished, taking photo...');
-                
+
                 // facial detection (Done by Yu Kang)
                 // Take the photo only when a face is detected
                 await runSelectedCapture();
-                
+
                 // Re-enable capture button
                 captureBtn.disabled = false;
                 return;
             }
-            
+
             countdownText.textContent = countdown;
             console.log('Countdown:', countdown);
         }, 1000);
@@ -3775,13 +3846,13 @@ async function takePhoto(faceDetection = null, faceAccessoryLandmarks = null) { 
     userData.boomerangFrameDelayMs = null; // Clear backend GIF timing for normal photo mode - changes made by nick
     userData.boomerangQuality = null; // Clear GIF quality metadata for normal photo mode (DONE BY NICK)
     stopFaceAccessoryPreview();
-    
+
     // Stop camera stream after taking photo
     if (stream) {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
     }
-    
+
     // Immediately go to style page (don't save photo yet)
     cheerRpBear('Photo captured. Let us pick a frame.');
     continueToStyle();
@@ -3789,16 +3860,13 @@ async function takePhoto(faceDetection = null, faceAccessoryLandmarks = null) { 
 // mirror function done by nick
 function toggleMirror() {
     const video = document.getElementById('video');
-    const invertBtn = document.getElementById('invert-btn');
+    const mirrorBtn = document.getElementById('mirror-btn');
 
     isMirrored = !isMirrored;
-
-    if (isMirrored) {
-        video.classList.add('mirror');
-        invertBtn.textContent = '↩️ Normal View';
-    } else {
-        video.classList.remove('mirror');
-        invertBtn.textContent = '🔄 Mirror View';
+    if (video) video.classList.toggle('mirror', isMirrored);
+    if (mirrorBtn) {
+        mirrorBtn.textContent = isMirrored ? 'Normal View' : 'Mirror View';
+        mirrorBtn.setAttribute('aria-pressed', String(isMirrored));
     }
 }
 
@@ -3807,7 +3875,7 @@ function continueToStyle() {
     if (photoData) {
         // Update the preview with properly positioned photo
         updatePreviewWithCutout();
-        
+
         showFlowPage('style-page');
         resetInactivityTimer();
     } else {
@@ -3819,7 +3887,7 @@ function continueToStyle() {
 // Save original photo to server
 function saveOriginalPhoto() {
     if (!photoData) return Promise.resolve();
-    
+
     return fetch('/api/feedback/save-photo', {
         method: 'POST',
         headers: {
@@ -3831,26 +3899,26 @@ function saveOriginalPhoto() {
             device: currentDevice
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success === false || data.error) {
-            throw new Error(data.error || 'Original photo could not be saved.');
-        }
-        console.log('Original photo saved successfully:', data);
-        userData.photoId = data.filename;
-        userData.device = currentDevice;
-        return data;
-    })
-    .catch(error => {
-        console.error('Error saving original photo:', error);
-        throw error;
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success === false || data.error) {
+                throw new Error(data.error || 'Original photo could not be saved.');
+            }
+            console.log('Original photo saved successfully:', data);
+            userData.photoId = data.filename;
+            userData.device = currentDevice;
+            return data;
+        })
+        .catch(error => {
+            console.error('Error saving original photo:', error);
+            throw error;
+        });
 }
 
 // Save processed photo with overlay to server
 function saveProcessedPhoto() {
     if (!userData.processedPhoto) return Promise.resolve();
-    
+
     return fetch('/api/feedback/save-processed-photo', {
         method: 'POST',
         headers: {
@@ -3867,24 +3935,24 @@ function saveProcessedPhoto() {
             expectedFormat: userData.captureMode === 'boomerang' ? 'gif' : 'png' // Force boomerang email keepsake to save as GIF - changes made by nick
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success === false || data.error) {
-            throw new Error(data.error || 'Processed photo could not be saved.');
-        }
-        console.log('Processed photo saved:', data);
-        if (userData.captureMode === 'boomerang' && !String(data.filename || '').toLowerCase().endsWith('.gif')) {
-            throw new Error('Boomerang was not saved as a GIF. Please try capturing it again.');
-        }
-        userData.processedPhotoId = data.filename;
-        userData.processedPhoto = null; // Avoid resending large GIF/PNG data in final submission - changes made by nick
-        userData.processedBoomerangFrames = null; // Avoid resending large boomerang frames in final submission - changes made by nick
-        return data;
-    })
-    .catch(error => {
-        console.error('Error saving processed photo:', error);
-        throw error;
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.success === false || data.error) {
+                throw new Error(data.error || 'Processed photo could not be saved.');
+            }
+            console.log('Processed photo saved:', data);
+            if (userData.captureMode === 'boomerang' && !String(data.filename || '').toLowerCase().endsWith('.gif')) {
+                throw new Error('Boomerang was not saved as a GIF. Please try capturing it again.');
+            }
+            userData.processedPhotoId = data.filename;
+            userData.processedPhoto = null; // Avoid resending large GIF/PNG data in final submission - changes made by nick
+            userData.processedBoomerangFrames = null; // Avoid resending large boomerang frames in final submission - changes made by nick
+            return data;
+        })
+        .catch(error => {
+            console.error('Error saving processed photo:', error);
+            throw error;
+        });
 }
 
 
@@ -3903,11 +3971,11 @@ async function loadOverlayOptions() {
         // Fetch overlays from the API
         const response = await fetch('/api/feedback/overlays');
         const data = await response.json();
-        
+
         if (data.success && data.overlays.length > 0) {
             // Clear existing options
             overlayOptions.innerHTML = '';
-            
+
             // Store overlay data including file paths for later use 
             overlayData = {};
             data.overlays.forEach(overlay => {
@@ -3918,21 +3986,21 @@ async function loadOverlayOptions() {
                 };
             });
             console.log('Loaded overlay data from database:', overlayData);
-            
+
             // Create theme options from database data
             data.overlays.forEach(overlay => {
                 const themeOption = document.createElement('div');
                 themeOption.className = 'theme-option';
                 themeOption.onclick = () => selectTheme(overlay.theme_id, themeOption);
-                
+
                 // Generate a consistent color based on theme_id
                 const color = generateColorFromThemeId(overlay.theme_id);
-                
+
                 themeOption.innerHTML = `
                     <div class="theme-swatch" style="background: ${color};"></div>
                     <div class="theme-name">${overlay.display_name}</div>
                 `;
-                
+
                 overlayOptions.appendChild(themeOption);
             });
 
@@ -3946,12 +4014,12 @@ async function loadOverlayOptions() {
                 if (themeElement && data.overlays[selectedIndex]) {
                     const selectedOverlay = data.overlays[selectedIndex];
                     selectTheme(selectedOverlay.theme_id, themeElement);
-                    
+
                     // Update the selected overlay name display
                     document.getElementById('selected-overlay-name').textContent = selectedOverlay.display_name;
                 }
             }, 100);
-            
+
         } else {
             // Fallback to default themes if no overlays in database
             loadDefaultOverlayOptions();
@@ -3967,25 +4035,25 @@ async function loadOverlayOptions() {
 function loadDefaultOverlayOptions() {
     const overlayOptions = document.getElementById('overlay-options');
     if (!overlayOptions) return;
-    
+
     const defaultThemes = [
         { theme_id: 'nature', display_name: 'Nature Theme' },
         { theme_id: 'modern', display_name: 'Modern Theme' },
         { theme_id: 'vintage', display_name: 'Vintage Theme' }
     ];
-    
+
     defaultThemes.forEach(theme => {
         const themeOption = document.createElement('div');
         themeOption.className = 'theme-option';
         themeOption.onclick = () => selectTheme(theme.theme_id, themeOption);
-        
+
         const color = generateColorFromThemeId(theme.theme_id);
-        
+
         themeOption.innerHTML = `
             <div class="theme-swatch" style="background: ${color};"></div>
             <div class="theme-name">${theme.display_name}</div>
         `;
-        
+
         overlayOptions.appendChild(themeOption);
     });
 
@@ -4005,13 +4073,13 @@ function generateColorFromThemeId(themeId) {
         '#10b981', '#22c55e', '#06b6d4', '#84cc16', '#3b82f6',
         '#8b5cf6', '#ec4899', '#f59e0b', '#ef4444', '#6366f1'
     ];
-    
+
     // Simple hash to get consistent color for same theme_id
     let hash = 0;
     for (let i = 0; i < themeId.length; i++) {
         hash = themeId.charCodeAt(i) + ((hash << 5) - hash);
     }
-    
+
     const index = Math.abs(hash) % colors.length;
     return colors[index];
 }
@@ -4023,13 +4091,13 @@ function selectTheme(theme, element) {
     });
     element.classList.add('selected');
     selectedTheme = theme;
-    
+
     // Update the selected overlay name display
     const selectedOption = element.querySelector('.theme-name');
     if (selectedOption) {
         document.getElementById('selected-overlay-name').textContent = selectedOption.textContent;
     }
-    
+
     // Update preview with selected theme and device
     updateThemePreview();
     resetInactivityTimer();
@@ -4038,12 +4106,12 @@ function selectTheme(theme, element) {
 // Update theme preview with correct file paths from database 
 function updateThemePreview() {
     const overlayImage = document.getElementById('selected-overlay');
-    
+
     // Get the correct path from overlayData (from database)
     let overlayPath;
     if (overlayData[selectedTheme]) {
         // Use the path from database - this works on both Windows and Linux
-        overlayPath = currentDevice === 'mobile' 
+        overlayPath = currentDevice === 'mobile'
             ? overlayData[selectedTheme].mobile_filename
             : overlayData[selectedTheme].desktop_filename;
         console.log('Using database path for theme:', selectedTheme, '| Path:', overlayPath);
@@ -4052,18 +4120,18 @@ function updateThemePreview() {
         overlayPath = `/assets/overlays/${currentDevice === 'mobile' ? 'MobileOverlay' : 'DesktopOverlay'}/${selectedTheme}Theme${currentDevice === 'mobile' ? 'Mobile' : 'Desktop'}.png`;
         console.log('Using constructed path (fallback) for theme:', selectedTheme, '| Path:', overlayPath);
     }
-    
+
     console.log('Loading overlay from:', overlayPath);
     overlayImage.src = overlayPath;
-    
+
     // Add error handler to help debug
-    overlayImage.onerror = function() {
+    overlayImage.onerror = function () {
         console.error('❌ Failed to load overlay:', overlayPath);
         console.error('Current device:', currentDevice);
         console.error('Selected theme:', selectedTheme);
         console.error('Available overlay data:', overlayData);
     };
-    
+
     // Also update the preview photo if it exists
     updatePreviewWithCutout();
 }
@@ -4071,65 +4139,65 @@ function updateThemePreview() {
 // Render one photo or boomerang frame into the overlay cutout - changes made by nick
 function renderPreviewPhotoFrame(frameDataUrl, previewPhoto) {
     return new Promise((resolve) => {
-    const previewCanvas = document.createElement('canvas');
-    const ctx = previewCanvas.getContext('2d');
-    
-    // Set canvas size to match preview frame
-    const previewDimensions = {
-        'desktop': { width: 800, height: 450 },
-        'mobile': { width: 324, height: 405 }
-    };
-    
-    const dimensions = previewDimensions[currentDevice];
-    previewCanvas.width = dimensions.width;
-    previewCanvas.height = dimensions.height;
-    
-    // Cutout dimensions and positions for preview (scaled down from original)
-    const cutoutSpecs = {
-        'desktop': {
-            cutoutWidth: 640,  // 1536 * (800/1920)
-            cutoutHeight: 360, // 864 * (450/1080)
-            cutoutX: 80,       // 192 * (800/1920)
-            cutoutY: 23        // 55 * (450/1080)
-        },
-        'mobile': {
-            cutoutWidth: 259,  // 864 * (324/1080)
-            cutoutHeight: 324, // 1080 * (405/1350)
-            cutoutX: 32,       // 108 * (324/1080)
-            cutoutY: 15        // 51 * (405/1350)
-        }
-    };
-    
-    const cutout = cutoutSpecs[currentDevice];
-    
+        const previewCanvas = document.createElement('canvas');
+        const ctx = previewCanvas.getContext('2d');
+
+        // Set canvas size to match preview frame
+        const previewDimensions = {
+            'desktop': { width: 800, height: 450 },
+            'mobile': { width: 324, height: 405 }
+        };
+
+        const dimensions = previewDimensions[currentDevice];
+        previewCanvas.width = dimensions.width;
+        previewCanvas.height = dimensions.height;
+
+        // Cutout dimensions and positions for preview (scaled down from original)
+        const cutoutSpecs = {
+            'desktop': {
+                cutoutWidth: 640,  // 1536 * (800/1920)
+                cutoutHeight: 360, // 864 * (450/1080)
+                cutoutX: 80,       // 192 * (800/1920)
+                cutoutY: 23        // 55 * (450/1080)
+            },
+            'mobile': {
+                cutoutWidth: 259,  // 864 * (324/1080)
+                cutoutHeight: 324, // 1080 * (405/1350)
+                cutoutX: 32,       // 108 * (324/1080)
+                cutoutY: 15        // 51 * (405/1350)
+            }
+        };
+
+        const cutout = cutoutSpecs[currentDevice];
+
         const img = new Image();
-        img.onload = function() {
-        // Fill background with white
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
-        
-        // Calculate scaling to fill the cutout (cover style)
-        const scale = Math.max(
-            cutout.cutoutWidth / img.width,
-            cutout.cutoutHeight / img.height
-        );
-        
-        const scaledWidth = img.width * scale;
-        const scaledHeight = img.height * scale;
-        
-        // Center the scaled image in the cutout
-        const x = cutout.cutoutX + (cutout.cutoutWidth - scaledWidth) / 2;
-        const y = cutout.cutoutY + (cutout.cutoutHeight - scaledHeight) / 2;
-        
-        // Draw the scaled photo in the cutout area
-        ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-        
-        // Update the preview image
-        previewPhoto.src = previewCanvas.toDataURL('image/png');
+        img.onload = function () {
+            // Fill background with white
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, previewCanvas.width, previewCanvas.height);
+
+            // Calculate scaling to fill the cutout (cover style)
+            const scale = (shouldContainPhoto(frameDataUrl) ? Math.min : Math.max)(
+                cutout.cutoutWidth / img.width,
+                cutout.cutoutHeight / img.height
+            );
+
+            const scaledWidth = img.width * scale;
+            const scaledHeight = img.height * scale;
+
+            // Center the scaled image in the cutout
+            const x = cutout.cutoutX + (cutout.cutoutWidth - scaledWidth) / 2;
+            const y = cutout.cutoutY + (cutout.cutoutHeight - scaledHeight) / 2;
+
+            // Draw the scaled photo in the cutout area
+            ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
+
+            // Update the preview image
+            previewPhoto.src = previewCanvas.toDataURL('image/png');
             resolve();
-        
-        console.log('Preview updated with cutout positioning');
-    };
+
+            console.log('Preview updated with cutout positioning');
+        };
 
         img.src = frameDataUrl;
     });
@@ -4159,7 +4227,7 @@ async function startBoomerangPreview(previewPhoto) {
 function updatePreviewWithCutout() {
     const previewPhoto = document.getElementById('preview-photo');
     const overlayImage = document.getElementById('selected-overlay');
-    
+
     if (!previewPhoto || !overlayImage || !photoData) return;
 
     // Animate the preview when the visitor captured a boomerang - changes made by nick
@@ -4425,21 +4493,21 @@ function processFinalPhotoFromStillFrame() { // changes made by nick
             resolve();
             return;
         }
-        
+
         // Create a canvas to combine photo and overlay
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        
+
         // Set canvas size based on device (full size)
         const deviceDimensions = {
             'desktop': { width: 1920, height: 1080 },
             'mobile': { width: 1080, height: 1350 }
         };
-        
+
         const dimensions = deviceDimensions[currentDevice];
         canvas.width = dimensions.width;
         canvas.height = dimensions.height;
-        
+
         // Cutout dimensions and positions based on device (full size)
         const cutoutSpecs = {
             'desktop': {
@@ -4455,51 +4523,51 @@ function processFinalPhotoFromStillFrame() { // changes made by nick
                 cutoutY: 51
             }
         };
-        
+
         const cutout = cutoutSpecs[currentDevice];
-        
+
         // Load the original photo
         const img = new Image();
-        img.onload = function() {
+        img.onload = function () {
             // Fill background with white
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
+
             // Calculate scaling to fill the cutout (cover style)
-            const scale = Math.max(
+            const scale = (shouldContainPhoto(photoData) ? Math.min : Math.max)(
                 cutout.cutoutWidth / img.width,
                 cutout.cutoutHeight / img.height
             );
-            
+
             const scaledWidth = img.width * scale;
             const scaledHeight = img.height * scale;
-            
+
             // Centre the scaled image in the cutout
             const x = cutout.cutoutX + (cutout.cutoutWidth - scaledWidth) / 2;
             const y = cutout.cutoutY + (cutout.cutoutHeight - scaledHeight) / 2;
-            
+
             // Draw the scaled photo in the cutout area
             ctx.drawImage(img, x, y, scaledWidth, scaledHeight);
-            
+
             // Load and apply the overlay (border)
             const overlayImg = new Image();
-            overlayImg.onload = function() {
+            overlayImg.onload = function () {
                 // Draw the overlay on top (this should be the border with transparent cutout)
                 ctx.drawImage(overlayImg, 0, 0, canvas.width, canvas.height);
-                
+
                 // Save the final processed photo data (but don't save to server yet)
                 userData.processedPhoto = canvas.toDataURL('image/png');
-                
+
                 console.log('Final photo processed with overlay and proper cutout positioning');
                 resolve();
             };
-            
+
             const overlayPath = getOverlayPathForCurrentTheme(); // changes made by nick
             console.log('Processing final photo with overlay:', overlayPath);
             overlayImg.src = overlayPath;
-            
+
             // If overlay fails to load, still proceed with the base photo
-            overlayImg.onerror = function() {
+            overlayImg.onerror = function () {
                 console.error('❌ Failed to load overlay for final processing:', overlayPath);
                 console.error('Current device:', currentDevice);
                 console.error('Selected theme:', selectedTheme);
@@ -4508,7 +4576,7 @@ function processFinalPhotoFromStillFrame() { // changes made by nick
                 resolve();
             };
         };
-        
+
         img.src = photoData;
     });
 }
@@ -4562,7 +4630,7 @@ function retakePhotoFromStyle() {
         // Reinitialize camera for desktop
         initializeCamera();
     }
-    
+
     resetInactivityTimer();
 }
 
@@ -4576,7 +4644,7 @@ function confirmStyle() {
     processFinalPhoto().then(() => {
         showFlowPage('confirmation-page');
         resetInactivityTimer();
-        
+
         // Update confirmation page details
         updateConfirmationDetails();
         setRpBearMood(null);
@@ -4624,7 +4692,7 @@ function updateConfirmationDetails() {
             ? 'Disabled'
             : (getDynamicLanguageText().confirmEmailPhotoReady || 'Will be sent to your email');
     }
-    
+
     // Show how many questions were answered
     const answeredCount = Object.keys(userData.answers || {}).length;
     setConfirmationValue('confirm-questions', getDynamicLanguageText().questionsAnswered(answeredCount));
@@ -4646,7 +4714,7 @@ function finalSubmit() {
     const submitBtn = document.querySelector('#confirmation-page .consent-button');
     const originalText = submitBtn.innerHTML;
     document.body.classList.add('submitting-feedback');
-    
+
     submitBtn.innerHTML = `
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="10" cy="10" r="8" stroke="white" stroke-width="1.5"/>
@@ -4657,13 +4725,13 @@ function finalSubmit() {
     submitBtn.disabled = true;
     setRpBearMood('thinking');
     setRpBearSpeech('Submitting now. I am saving your visit and preparing the email.', true);
-    
+
     // Clear inactivity timer since submission is in progress
     if (inactivityTimer) {
         clearTimeout(inactivityTimer);
         inactivityTimer = null;
     }
-    
+
     // Save photos and submit data only when user confirms
     Promise.all([
         saveOriginalPhoto(),
@@ -4683,51 +4751,51 @@ function finalSubmit() {
             })
         });
     }).then(response => response.json())
-    .then(data => {
-        if (data.success === false) {
-            const validationMessage = Array.isArray(data.errors)
-                ? data.errors.map(error => error.message).join('\n')
-                : (data.message || 'Submission validation failed.');
-            throw new Error(validationMessage);
-        }
+        .then(data => {
+            if (data.success === false) {
+                const validationMessage = Array.isArray(data.errors)
+                    ? data.errors.map(error => error.message).join('\n')
+                    : (data.message || 'Submission validation failed.');
+                throw new Error(validationMessage);
+            }
 
-        console.log('Feedback submitted successfully:', data);
-        const submissionData = data.data || data;
-        
-        // Show thank you page
-        showFlowPage('thankyou-page');
-        cheerRpBear('All done. Your visit has been saved.');
-        
-        // Show the visitor which badge/leaf reward they unlocked.
-        setupBadgeReward(submissionData);
-        setupCelebrationMoment(submissionData);
-        // Show visitor number and milestone confetti on thank-you page - changes made by nick
-        setupVisitorMilestone(submissionData);
-        setupJourneyPassport(submissionData);
-        setupKeepsakeDownload(submissionData); // Downloadable visitor keepsake (DONE BY NICK)
+            console.log('Feedback submitted successfully:', data);
+            const submissionData = data.data || data;
 
-        // Set up social share content for the thank-you page based on combined email queue status.
-        setupSocialShare(submissionData);
-        
-        // Reset button
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        document.body.classList.remove('submitting-feedback');
-        setRpBearMood(null);
-    })
-    .catch(error => {
-        console.error('Error submitting feedback:', error);
-        showVisitorNotice('confirmation-form-alert', error.message || 'Error submitting feedback. Please try again.', 'Submission did not go through. Check the message, then try again.');
-        
-        // Reset button on error
-        submitBtn.innerHTML = originalText;
-        submitBtn.disabled = false;
-        document.body.classList.remove('submitting-feedback');
-        setRpBearMood(null);
-        
-        // Restart timer since submission failed
-        startInactivityTimer();
-    });
+            // Show thank you page
+            showFlowPage('thankyou-page');
+            cheerRpBear('All done. Your visit has been saved.');
+
+            // Show the visitor which badge/leaf reward they unlocked.
+            setupBadgeReward(submissionData);
+            setupCelebrationMoment(submissionData);
+            // Show visitor number and milestone confetti on thank-you page - changes made by nick
+            setupVisitorMilestone(submissionData);
+            setupJourneyPassport(submissionData);
+            setupKeepsakeDownload(submissionData); // Downloadable visitor keepsake (DONE BY NICK)
+
+            // Set up social share content for the thank-you page based on combined email queue status.
+            setupSocialShare(submissionData);
+
+            // Reset button
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            document.body.classList.remove('submitting-feedback');
+            setRpBearMood(null);
+        })
+        .catch(error => {
+            console.error('Error submitting feedback:', error);
+            showVisitorNotice('confirmation-form-alert', error.message || 'Error submitting feedback. Please try again.', 'Submission did not go through. Check the message, then try again.');
+
+            // Reset button on error
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+            document.body.classList.remove('submitting-feedback');
+            setRpBearMood(null);
+
+            // Restart timer since submission failed
+            startInactivityTimer();
+        });
 }
 
 function setupKeepsakeDownload(data = {}) { // Thank-you page downloadable keepsake (DONE BY NICK)
@@ -4740,8 +4808,8 @@ function setupKeepsakeDownload(data = {}) { // Thank-you page downloadable keeps
     const downloadPath = processedId
         ? `/uploads/processed/${processedId}`
         : rawId
-        ? `/uploads/photos/${rawId}`
-        : '';
+            ? `/uploads/photos/${rawId}`
+            : '';
 
     if (!downloadPath) {
         button.hidden = true;
@@ -5675,7 +5743,7 @@ function submitAnother() {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
     }
-    
+
     // Reset all data
     selectedRetention = LONG_TERM_RETENTION;
     selectedTheme = 'nature';
@@ -5689,7 +5757,7 @@ function submitAnother() {
     updateCaptureModeButtons();
     updateFaceAccessoryButtons();
     setupKeepsakeDownload({}); // Clear previous visitor download state (DONE BY NICK)
-    
+
     // Reset forms
     document.querySelectorAll('form').forEach(form => form.reset());
     document.querySelectorAll('.selected').forEach(el => el.classList.remove('selected'));
@@ -5697,10 +5765,10 @@ function submitAnother() {
     if (proceedBtn) proceedBtn.disabled = true;
     document.getElementById('char-count').textContent = '0';
     clearValidationMessages();
-    
+
     // Go back to landing page
     showLandingPages();
-    
+
     // Restart inactivity timer
     startInactivityTimer();
 }
@@ -5779,9 +5847,9 @@ function goBackToPledge() {
         stream.getTracks().forEach(track => track.stop());
         stream = null;
     }
-    
+
     showFlowPage('pledge-page');
-    
+
     resetInactivityTimer();
 }
 
@@ -5789,7 +5857,7 @@ function goBackToPledge() {
 // function goBackToPhoto() {
 //     // Hide style page
 //     document.getElementById('style-page').style.display = 'none';
-    
+
 //     // Show appropriate photo page based on device
 //     if (currentDevice === 'mobile') {
 //         document.getElementById('file-upload-page').style.display = 'flex';
@@ -5798,7 +5866,7 @@ function goBackToPledge() {
 //         // Reinitialize camera for desktop
 //         initializeCamera();
 //     }
-    
+
 //     resetInactivityTimer();
 // }
 
@@ -5838,52 +5906,52 @@ function viewPledgeboard() {
 // Load and apply form UI settings from server config
 
 async function applyFormUIConfig() {
-  try {
-    const response = await fetch('/api/feedback/form-ui');
-    const config = await response.json();
+    try {
+        const response = await fetch('/api/feedback/form-ui');
+        const config = await response.json();
 
-    // Apply background (CSS variable)
-    if (config.background) {
-      document.documentElement.style.setProperty('--form-bg', config.background);
+        // Apply background (CSS variable)
+        if (config.background) {
+            document.documentElement.style.setProperty('--form-bg', config.background);
+        }
+
+        // Apply landing page title
+        if (config.landingTitle) {
+            setText('form-landing-title', config.landingTitle);
+        }
+
+        // Apply landing page subtitle
+        if (config.landingSubtitle) {
+            setText('form-landing-subtitle', config.landingSubtitle);
+        }
+
+        const qrEnabled = Boolean(config.showLandingPageQRCode);
+        const qrPage = document.getElementById('land-page-qrcode');
+        const noQrPage = document.getElementById('land-page-no-qrcode');
+
+        if (qrPage) {
+            qrPage.style.display = qrEnabled ? 'block' : 'none';
+        }
+
+        if (noQrPage) {
+            noQrPage.style.display = qrEnabled ? 'none' : 'block';
+        }
+    } catch (error) {
+        console.error('Error applying form UI configuration:', error);
     }
-
-    // Apply landing page title
-    if (config.landingTitle) {
-      setText('form-landing-title', config.landingTitle);
-    }
-
-    // Apply landing page subtitle
-    if (config.landingSubtitle) {
-      setText('form-landing-subtitle', config.landingSubtitle);
-    }
-
-    const qrEnabled = Boolean(config.showLandingPageQRCode);
-    const qrPage = document.getElementById('land-page-qrcode');
-    const noQrPage = document.getElementById('land-page-no-qrcode');
-
-    if (qrPage) {
-      qrPage.style.display = qrEnabled ? 'block' : 'none';
-    }
-
-    if (noQrPage) {
-      noQrPage.style.display = qrEnabled ? 'none' : 'block';
-    }
-  } catch (error) {
-    console.error('Error applying form UI configuration:', error);
-  }
 }
 
 async function loadKioskParameters() {
-  try {
-    const response = await fetch('/api/parameters');
-    const data = await response.json();
-    if (!response.ok || !data.success) return;
+    try {
+        const response = await fetch('/api/parameters');
+        const data = await response.json();
+        if (!response.ok || !data.success) return;
 
-    kioskParameters = data.parameters || {};
-    applyParameterOverrides();
-  } catch (error) {
-    console.warn('Parameter config unavailable:', error);
-  }
+        kioskParameters = data.parameters || {};
+        applyParameterOverrides();
+    } catch (error) {
+        console.warn('Parameter config unavailable:', error);
+    }
 }
 
 function getTemporaryRetentionDays() {
@@ -6091,7 +6159,7 @@ async function loadCountdownTimer() {
         console.log('Loading countdown timer setting...');
         const response = await fetch('/api/feedback/countdown-timer');
         const data = await response.json();
-        
+
         if (data.success && typeof data.countdown_seconds === 'number') {
             countdownSeconds = data.countdown_seconds >= 0 ? data.countdown_seconds : 3;
             console.log(`Countdown timer loaded: ${countdownSeconds} seconds`);
@@ -6693,7 +6761,7 @@ function applyTranslations() {
     setText('feedback-description', t.feedbackDescription);
     setText('continue-to-pledge-text', t.continueToPledge);
     setText('back-from-feedback-text', t.back);
-     setText('home-from-feedback-text', getDynamicLanguageText().home); // Home button translation done by nick
+    setText('home-from-feedback-text', getDynamicLanguageText().home); // Home button translation done by nick
 
     setText('pledge-title', t.pledgeTitle);
     setText('pledge-description', t.pledgeDescription);
@@ -6810,3 +6878,3189 @@ document.addEventListener('DOMContentLoaded', function () {
         applyTranslations();
     }, 100);
 });
+
+// ============================================================================
+// AR ADD-ON  (code 1 merged into feedback.js / code 2)
+// ----------------------------------------------------------------------------
+// HOW TO USE: paste this whole block at the VERY END of feedback.js
+//             (or load it as a separate <script> right after feedback.js).
+// feedback.js itself is NOT edited.
+//
+// How the merge works (classic script rules):
+//  - A later `function foo(){}` with the same name replaces the earlier one, so
+//    the face-prop functions below simply supersede the old versions.
+//  - Existing const/let from feedback.js (stream, isMirrored, userData,
+//    selectedFaceAccessory, faceLandmarker, FACE_ACCESSORY_OPTIONS ...) are
+//    reused here, never redeclared.
+//  - Code-1 parts that feedback.js already does (camera start, page switching,
+//    theme page, takePhoto, countdown, boomerang, beauty filter, photo strip)
+//    are NOT copied. The new effects hook into feedback.js's own flow instead.
+//  - Everything the new HTML would have needed (canvases, buttons, background
+//    dropdown, filter cards) is created from JS, so no HTML edit is required.
+// Image files expected in  /assets//assets/propsforphototaking/  (same as code 1).
+// ============================================================================
+
+// ---------------------------------------------------------------------------
+// 0) Constants + small helpers
+// ---------------------------------------------------------------------------
+const MAX_FACES = 4;   // how many people get a filter at once
+const AR_MEDIAPIPE_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/+esm';
+const AR_WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm';
+const HAND_LANDMARKER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/latest/hand_landmarker.task';
+const GESTURE_RECOGNIZER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/gesture_recognizer/gesture_recognizer/float16/1/gesture_recognizer.task';
+const SEGMENTER_MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/latest/selfie_multiclass_256x256.tflite';
+const CANVAS_FILTER_OK = typeof CanvasRenderingContext2D !== 'undefined' && 'filter' in CanvasRenderingContext2D.prototype;
+const faceListByFirst = new WeakMap();   // first face -> all faces of that frame
+
+// new filters appear in the existing swipe tray (old ones are kept)
+[
+    { id: 'rp-crown', label: 'RP Crown' },
+    { id: 'rp-future-ready', label: 'RP Future Ready' },
+    { id: 'rp-sticker-sunglasses', label: 'RP Sunglasses' },
+    { id: 'RPGoGreenGoRP!', label: 'Go Green Sign (Make a fist)' },
+    { id: 'fingerheart', label: 'Finger Heart (Make a finger heart)' },
+    { id: 'rp-mouse-ears', label: 'RP Mouse Ears' }
+].forEach((option) => {
+    if (!FACE_ACCESSORY_IDS.includes(option.id)) {
+        FACE_ACCESSORY_OPTIONS.push(option);
+        FACE_ACCESSORY_IDS.push(option.id);
+    }
+});
+
+function arEl(id) { return document.getElementById(id); }
+
+function arOnReady(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn);
+    else fn();
+}
+
+// feedback.js shows pages with style.display, not an "active" class
+function arPhotoPageActive() {
+    const page = arEl('photo-page');
+    return !!page && activeFlowPageId === 'photo-page' && page.style.display !== 'none';
+}
+
+function arCameraView() { return arEl('camera-container'); }
+
+function arEnsureRelative(el) {
+    if (el && getComputedStyle(el).position === 'static') el.style.position = 'relative';
+}
+
+// creates a transparent canvas laid exactly over the camera (same place as face-accessory-canvas)
+function arEnsureOverlayCanvas(id, below = false) {
+    let canvas = arEl(id);
+    if (canvas) return canvas;
+    const base = arEl('face-accessory-canvas');
+    if (!base || !base.parentNode) return null;
+    canvas = document.createElement('canvas');
+    canvas.id = id;
+    canvas.className = base.className;
+    canvas.setAttribute('aria-hidden', 'true');
+    canvas.style.position = 'absolute';
+    canvas.style.inset = '0';
+    canvas.style.width = '100%';
+    canvas.style.height = '100%';
+    canvas.style.pointerEvents = 'none';
+    arEnsureRelative(base.parentNode);
+    base.parentNode.insertBefore(canvas, below ? base : base.nextSibling);
+    return canvas;
+}
+
+function arEnsureStyles() {
+    if (arEl('ar-addon-style')) return;
+    const style = document.createElement('style');
+    style.id = 'ar-addon-style';
+    style.textContent =
+        '.ar-effects-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:12px 0}' +
+        '.ar-effects-row .toggle,.ar-effects-row select{min-height:40px;padding:6px 14px;border:1px solid #cbd5e1;' +
+        'border-radius:999px;background:#fff;color:#17382a;font:inherit;font-weight:700;cursor:pointer}' +
+        '.ar-effects-row .toggle[aria-pressed="true"]{background:#16a34a;border-color:#16a34a;color:#fff}' +
+        '#camera-container.fx-on #video{opacity:0}';
+    document.head.appendChild(style);
+}
+
+function arEffectsRow() {
+    let row = arEl('effects-row');
+    if (row) return row;
+    const view = arCameraView();
+    if (!view || !view.parentNode) return null;
+    row = document.createElement('div');
+    row.id = 'effects-row';
+    row.className = 'ar-effects-row';
+    view.parentNode.insertBefore(row, view.nextSibling);
+    return row;
+}
+
+// adds a card to the swipe tray for each new filter (cloned from an existing card so it looks the same)
+function arInjectFilterCards() {
+    const selector = arEl('face-filter-selector');
+    if (!selector) return;
+    const keep = ['rp-crown', 'rp-future-ready', 'rp-sticker-sunglasses', 'RPGoGreenGoRP!', 'fingerheart', 'rp-mouse-ears'];
+    const cards = selector.querySelectorAll('.face-filter-card');
+    const template = cards[cards.length - 1];
+    if (!template) return;
+    FACE_ACCESSORY_OPTIONS.forEach((option) => {
+        if (!keep.includes(option.id)) return;
+        if (selector.querySelector('.face-filter-card[data-accessory="' + option.id + '"]')) return;
+        const card = template.cloneNode(true);
+        card.removeAttribute('id');
+        card.dataset.accessory = option.id;
+        card.classList.remove('active');
+        card.setAttribute('aria-selected', 'false');
+        const label = card.querySelector('.face-filter-label, .face-filter-name, span:last-of-type');
+        if (label) label.textContent = option.label; else card.textContent = option.label;
+        card.addEventListener('click', () => selectFaceAccessory(option.id));
+        selector.appendChild(card);
+    });
+    updateFaceAccessoryButtons();
+}
+
+// ---------------------------------------------------------------------------
+// 1) Scratch canvases + blur helper
+// ---------------------------------------------------------------------------
+const scratchCanvases = {};
+function getScratch(name, w, h) {
+    let c = scratchCanvases[name];
+    if (!c) c = scratchCanvases[name] = document.createElement('canvas');
+    if (c.width !== w || c.height !== h) { c.width = w; c.height = h; }
+    const g = c.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.globalAlpha = 1;
+    g.filter = 'none';
+    g.clearRect(0, 0, w, h);
+    return c;
+}
+
+function blurInto(dstCtx, src, w, h, px) {
+    if (CANVAS_FILTER_OK) {
+        dstCtx.filter = 'blur(' + px.toFixed(1) + 'px)';
+        dstCtx.drawImage(src, 0, 0, w, h);
+        dstCtx.filter = 'none';
+        return;
+    }
+    const f = Math.max(1, Math.round(px * 0.9));   // Safari: down/up-scale blur
+    const small = getScratch('blur-small', Math.max(2, Math.round(w / f)), Math.max(2, Math.round(h / f)));
+    small.getContext('2d').drawImage(src, 0, 0, small.width, small.height);
+    dstCtx.imageSmoothingEnabled = true;
+    dstCtx.drawImage(small, 0, 0, w, h);
+}
+
+// ---------------------------------------------------------------------------
+// 2) Face landmarker (multi-face, GPU -> CPU fallback) + head pose  [replaces feedback.js versions]
+// ---------------------------------------------------------------------------
+async function ensureFaceLandmarkerReady() {
+    if (faceLandmarker) return faceLandmarker;
+    if (faceLandmarkerLoadPromise) return faceLandmarkerLoadPromise;
+
+    faceLandmarkerLoadPromise = import(AR_MEDIAPIPE_URL)
+        .then(async ({ FaceLandmarker, FilesetResolver }) => {
+            updateFaceDetectionStatus('Loading AR face effects...', 'loading');
+            const vision = await FilesetResolver.forVisionTasks(AR_WASM_URL);
+            const landmarkerOptions = (delegate) => ({
+                baseOptions: { modelAssetPath: FACE_LANDMARKER_MODEL_URL, delegate },
+                runningMode: 'VIDEO',
+                numFaces: MAX_FACES,
+                minFaceDetectionConfidence: 0.5,
+                minFacePresenceConfidence: 0.5,
+                minTrackingConfidence: 0.5
+            });
+            try {
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, landmarkerOptions('GPU'));
+            } catch (gpuError) {
+                console.warn('GPU delegate failed, using CPU:', gpuError);
+                faceLandmarker = await FaceLandmarker.createFromOptions(vision, landmarkerOptions('CPU'));
+            }
+            updateFaceDetectionStatus('Face detection ready.', 'success');
+            return faceLandmarker;
+        })
+        .catch((error) => {
+            console.error('Failed to load MediaPipe Face Landmarker:', error);
+            updateFaceDetectionStatus('Face effects unavailable. Photo capture still works.', 'error');
+            throw error;
+        })
+        .finally(() => { faceLandmarkerLoadPromise = null; });
+
+    return faceLandmarkerLoadPromise;
+}
+
+function detectFaceAccessoryLandmarks(video) {
+    if (!faceLandmarker || !video || video.readyState < 2 || video.videoWidth === 0 || video.videoHeight === 0) {
+        return null;
+    }
+    const result = faceLandmarker.detectForVideo(video, performance.now());
+    const first = getFaceAccessoryLandmarksFromResult(result);
+    const all = result?.faceLandmarks || result?.face_landmarks || [];
+    if (first) faceListByFirst.set(first, all);   // so drawFaceAccessory can draw every face
+    return first;
+}
+
+// Head turn / nod from the 3D landmarks (1 = facing the camera)
+const poseTracks = [];
+function estimateHeadPose(landmarks, w, h) {
+    const lc = landmarks[234], rc = landmarks[454], nose = landmarks[1], top = landmarks[10], chin = landmarks[152];
+    if (!lc || !rc || !nose || !top || !chin) return { cosYaw: 1, cosPitch: 1 };
+    const px = (p) => ({ x: p.x * w, y: p.y * h });
+    const L = px(lc), R = px(rc), N = px(nose), T = px(top), C = px(chin);
+
+    const ax = R.x - L.x, ay = R.y - L.y, faceW = Math.hypot(ax, ay) || 1;
+    const mx = (L.x + R.x) / 2, my = (L.y + R.y) / 2;
+    const turn = ((N.x - mx) * ax + (N.y - my) * ay) / faceW / (faceW / 2);
+    const yaw = Math.asin(Math.max(-1, Math.min(1, turn / 0.55)));
+
+    const ux = C.x - T.x, uy = C.y - T.y, faceH = Math.hypot(ux, uy) || 1;
+    const along = ((N.x - T.x) * ux + (N.y - T.y) * uy) / faceH / faceH;
+    const pitch = Math.min(0.8, Math.max(0, Math.abs(along - 0.6) - 0.04) * 2.2);
+
+    const cosYaw = Math.max(0.55, Math.cos(yaw));
+    const cosPitch = Math.max(0.7, Math.cos(pitch));
+
+    const now = performance.now();
+    for (let i = poseTracks.length - 1; i >= 0; i--) if (now - poseTracks[i].time > 500) poseTracks.splice(i, 1);
+    let best = null, bestD = faceW * 1.5;
+    poseTracks.forEach((t) => { const d = Math.hypot(t.cx - mx, t.cy - my); if (d < bestD) { best = t; bestD = d; } });
+    if (best) {
+        best.cosYaw += (cosYaw - best.cosYaw) * 0.35;
+        best.cosPitch += (cosPitch - best.cosPitch) * 0.35;
+        best.cx = mx; best.cy = my; best.time = now;
+        return { cosYaw: best.cosYaw, cosPitch: best.cosPitch };
+    }
+    poseTracks.push({ cx: mx, cy: my, cosYaw, cosPitch, time: now });
+    return { cosYaw, cosPitch };
+}
+
+function getFaceAccessoryGeometry(landmarks, width, height) {
+    const pose = estimateHeadPose(landmarks, width, height);
+    const leftEyeOuter = getLandmarkPoint(landmarks, 33, width, height);
+    const rightEyeOuter = getLandmarkPoint(landmarks, 263, width, height);
+    const noseTip = getLandmarkPoint(landmarks, 1, width, height);
+    const upperLip = getLandmarkPoint(landmarks, 13, width, height);
+    const forehead = getLandmarkPoint(landmarks, 10, width, height);
+    const chin = getLandmarkPoint(landmarks, 152, width, height);
+    const leftCheek = getLandmarkPoint(landmarks, 234, width, height);
+    const rightCheek = getLandmarkPoint(landmarks, 454, width, height);
+
+    if (!leftEyeOuter || !rightEyeOuter || !noseTip) return null;
+
+    const eyeCenter = {
+        x: (leftEyeOuter.x + rightEyeOuter.x) / 2,
+        y: (leftEyeOuter.y + rightEyeOuter.y) / 2
+    };
+    const eyeDistance = Math.hypot(rightEyeOuter.x - leftEyeOuter.x, rightEyeOuter.y - leftEyeOuter.y);
+    const angle = Math.atan2(rightEyeOuter.y - leftEyeOuter.y, rightEyeOuter.x - leftEyeOuter.x);
+    const faceHeight = forehead && chin ? Math.max(eyeDistance * 1.9, Math.abs(chin.y - forehead.y)) : eyeDistance * 2.2;
+
+    return {
+        angle,
+        pose,
+        eyeCenter,
+        eyeDistance,
+        faceHeight,
+        noseTip,
+        upperLip: upperLip || { x: noseTip.x, y: noseTip.y + eyeDistance * 0.35 },
+        forehead: forehead || { x: eyeCenter.x, y: eyeCenter.y - eyeDistance * 0.85 },
+        leftCheek: leftCheek || { x: eyeCenter.x - eyeDistance * 0.48, y: noseTip.y + eyeDistance * 0.2 },
+        rightCheek: rightCheek || { x: eyeCenter.x + eyeDistance * 0.48, y: noseTip.y + eyeDistance * 0.2 }
+    };
+}
+
+// ---------------------------------------------------------------------------
+// 3) IMAGE PROPS (crown, ears, sunglasses, future-ready sticker)
+// ---------------------------------------------------------------------------
+const IMAGE_PROPS = {
+    'rp-crown': {
+        src: '/assets/propsforphototaking/rp-crown.png',
+        widthEyes: 2.5, anchorX: 0.5, anchorY: 0.57, lift: 0.12
+    },
+    'rp-mouse-ears': {
+        src: '/assets/propsforphototaking/rp-mouse-ears.png',   // must match the real file name exactly (case-sensitive)
+        widthEyes: 2.3, anchorX: 0.5, anchorY: 0.45, lift: 0.15
+    }
+};
+Object.entries(IMAGE_PROPS).forEach(([id, prop]) => {
+    prop.image = new Image();
+    prop.image.onerror = () => console.error(`[${id}] image not found: ${prop.src}`);
+    prop.image.src = prop.src;
+});
+
+function drawWornImageProp(ctx, geometry, prop) {
+    if (!prop) return;
+    const image = prop.image;
+    if (!image || !image.complete || !image.naturalWidth) return;
+
+    const pose = geometry.pose || { cosYaw: 1, cosPitch: 1 };
+    const trueEye = geometry.eyeDistance / pose.cosYaw;
+    const drawWidth = trueEye * prop.widthEyes;
+    const drawHeight = drawWidth * (image.naturalHeight / image.naturalWidth);
+
+    ctx.save();
+    ctx.translate(geometry.forehead.x, geometry.forehead.y);
+    ctx.rotate(geometry.angle);
+    ctx.translate(0, -geometry.faceHeight * prop.lift);
+    ctx.scale(pose.cosYaw, pose.cosPitch);
+    if (isMirrored) ctx.scale(-1, 1);   // un-flip so the "RP" logo reads the right way round
+    ctx.drawImage(image, -drawWidth * prop.anchorX, -drawHeight * prop.anchorY, drawWidth, drawHeight);
+    ctx.restore();
+}
+
+function drawRpCrownAccessory(ctx, geometry) { drawWornImageProp(ctx, geometry, IMAGE_PROPS['rp-crown']); }
+function drawRpMouseEarsAccessory(ctx, geometry) { drawWornImageProp(ctx, geometry, IMAGE_PROPS['rp-mouse-ears']); }
+
+const FUTURE_READY_STICKER = {
+    src: '/assets/propsforphototaking/rp-future-ready.png',
+    widthFace: 0.9, gap: 0.04, lift: 0.12, smoothing: 0.3,
+    image: new Image(), pos: null, lastTime: 0
+};
+FUTURE_READY_STICKER.image.src = FUTURE_READY_STICKER.src;
+
+function drawRpFutureReadyAccessory(ctx, geometry, width, height, time) {
+    const sticker = FUTURE_READY_STICKER;
+    const image = sticker.image;
+    if (!image.complete || !image.naturalWidth) return;
+
+    const faceWidth = Math.hypot(
+        geometry.rightCheek.x - geometry.leftCheek.x,
+        geometry.rightCheek.y - geometry.leftCheek.y
+    );
+    const faceCenterX = (geometry.leftCheek.x + geometry.rightCheek.x) / 2;
+    const drawWidth = faceWidth * sticker.widthFace;
+    const drawHeight = drawWidth * (image.naturalHeight / image.naturalWidth);
+    const offset = faceWidth / 2 + faceWidth * sticker.gap + drawWidth / 2;
+
+    let side = isMirrored ? -1 : 1;
+    const fits = (s) => {
+        const cx = faceCenterX + s * offset;
+        return cx - drawWidth / 2 >= 0 && cx + drawWidth / 2 <= width;
+    };
+    if (!fits(side) && fits(-side)) side = -side;
+
+    const bob = Math.sin(time / 400) * faceWidth * 0.015;
+    let targetX = faceCenterX + side * offset;
+    let targetY = geometry.eyeCenter.y - geometry.faceHeight * sticker.lift + bob;
+    targetX = Math.max(drawWidth / 2, Math.min(width - drawWidth / 2, targetX));
+    targetY = Math.max(drawHeight / 2, Math.min(height - drawHeight / 2, targetY));
+
+    if (!sticker.pos || time - sticker.lastTime > 500) {
+        sticker.pos = { x: targetX, y: targetY };
+    } else {
+        sticker.pos.x += (targetX - sticker.pos.x) * sticker.smoothing;
+        sticker.pos.y += (targetY - sticker.pos.y) * sticker.smoothing;
+    }
+    sticker.lastTime = time;
+
+    ctx.save();
+    ctx.translate(sticker.pos.x, sticker.pos.y);
+    if (isMirrored) ctx.scale(-1, 1);
+    ctx.drawImage(image, -drawWidth / 2, -drawHeight / 2, drawWidth, drawHeight);
+    ctx.restore();
+}
+
+const RP_SUNGLASSES = {
+    src: '/assets/propsforphototaking/rp-sticker-sunglasses.png',
+    widthEyes: 2.0, anchorY: 0.53, drop: 0.0,
+    image: new Image()
+};
+RP_SUNGLASSES.image.src = RP_SUNGLASSES.src;
+
+function drawRpSunglassesAccessory(ctx, geometry) {
+    const image = RP_SUNGLASSES.image;
+    if (!image.complete || !image.naturalWidth) return;
+
+    const pose = geometry.pose || { cosYaw: 1, cosPitch: 1 };
+    const drawWidth = (geometry.eyeDistance / pose.cosYaw) * RP_SUNGLASSES.widthEyes;
+    const drawHeight = drawWidth * (image.naturalHeight / image.naturalWidth);
+
+    ctx.save();
+    ctx.translate(geometry.eyeCenter.x, geometry.eyeCenter.y + geometry.eyeDistance * RP_SUNGLASSES.drop);
+    ctx.rotate(geometry.angle);
+    ctx.scale(pose.cosYaw, pose.cosPitch);
+    if (isMirrored) ctx.scale(-1, 1);
+    ctx.drawImage(image, -drawWidth / 2, -drawHeight * RP_SUNGLASSES.anchorY, drawWidth, drawHeight);
+    ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// 4) GO GREEN SIGN (make a fist) + FINGER HEART  (hand landmarker)
+// ---------------------------------------------------------------------------
+const RP_GO_GREEN = {
+    srcCandidates: ['/assets/propsforphototaking/rp-go-green.png', '/assets/propsforphototaking/RPGoGreenGoRP!.png', '/assets/propsforphototaking/RPGoGreenGoRP_.png'],
+    widthEyes: 2.5, anchorX: 0.55, anchorY: 0.82, smoothing: 0.5, holdMs: 400,
+    fistRatio: 1.35,    // too strict? raise it (1.5). Open hand triggers it? lower it (1.2)
+    debug: false,
+    image: new Image(), srcIndex: 0, imageFailed: false,
+    handLandmarker: null, loadPromise: null, loadFailedAt: 0,
+    lastVideoTime: -1, lastHand: null, lastSeen: 0, pos: null, angle: 0, debugText: 'starting...'
+};
+RP_GO_GREEN.image.onerror = () => {
+    RP_GO_GREEN.srcIndex += 1;
+    if (RP_GO_GREEN.srcIndex < RP_GO_GREEN.srcCandidates.length) {
+        RP_GO_GREEN.image.src = RP_GO_GREEN.srcCandidates[RP_GO_GREEN.srcIndex];
+    } else {
+        RP_GO_GREEN.imageFailed = true;
+        console.error('[GoGreen] image not found. Tried:', RP_GO_GREEN.srcCandidates);
+    }
+};
+RP_GO_GREEN.image.src = RP_GO_GREEN.srcCandidates[0];
+
+// one hand-landmarker loader shared by Go Green and Finger Heart state objects
+function arLoadHandLandmarker(holder, label) {
+    if (holder.handLandmarker) return Promise.resolve(holder.handLandmarker);
+    if (holder.loadPromise) return holder.loadPromise;
+    if (holder.loadFailedAt && performance.now() - holder.loadFailedAt < 5000) return Promise.resolve(null);
+
+    holder.loadPromise = import(AR_MEDIAPIPE_URL)
+        .then(async ({ HandLandmarker, FilesetResolver }) => {
+            const vision = await FilesetResolver.forVisionTasks(AR_WASM_URL);
+            const options = (delegate) => ({
+                baseOptions: { modelAssetPath: HAND_LANDMARKER_MODEL_URL, delegate },
+                runningMode: 'VIDEO',
+                numHands: 1,
+                minHandDetectionConfidence: 0.4,
+                minHandPresenceConfidence: 0.4,
+                minTrackingConfidence: 0.4
+            });
+            try {
+                holder.handLandmarker = await HandLandmarker.createFromOptions(vision, options('GPU'));
+            } catch (gpuError) {
+                console.warn(label + ' GPU delegate failed, using CPU:', gpuError);
+                holder.handLandmarker = await HandLandmarker.createFromOptions(vision, options('CPU'));
+            }
+            holder.loadFailedAt = 0;
+            return holder.handLandmarker;
+        })
+        .catch((error) => {
+            console.error('Failed to load MediaPipe Hand Landmarker (' + label + '):', error);
+            holder.loadFailedAt = performance.now();
+            return null;
+        })
+        .finally(() => { holder.loadPromise = null; });
+
+    return holder.loadPromise;
+}
+
+function ensureHandLandmarkerReady() { return arLoadHandLandmarker(RP_GO_GREEN, 'go green'); }
+
+function isFistGesture(hand, width, height) {
+    const dist = (a, b) => Math.hypot((a.x - b.x) * width, (a.y - b.y) * height);
+    const wrist = hand[0];
+    const fingers = [[8, 5], [12, 9], [16, 13], [20, 17]];
+    let ratioSum = 0;
+    fingers.forEach(([tip, knuckle]) => {
+        ratioSum += dist(hand[tip], wrist) / Math.max(1, dist(hand[knuckle], wrist));
+    });
+    return ratioSum / fingers.length < RP_GO_GREEN.fistRatio;
+}
+
+function drawGoGreenDebug(ctx, width, text) {
+    ctx.save();
+    if (isMirrored) { ctx.translate(width, 0); ctx.scale(-1, 1); }
+    ctx.font = '700 20px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+    ctx.fillRect(8, 8, 600, 34);
+    ctx.fillStyle = '#00ff66';
+    ctx.fillText(text, 16, 32);
+    ctx.restore();
+}
+
+// HTML pill, so it never appears in the saved photo
+function updateGoGreenHint(show) {
+    let hint = arEl('go-green-hint');
+    if (!hint) {
+        const canvas = arEl('face-accessory-canvas');
+        const parent = canvas && canvas.parentElement;
+        if (!parent) return;
+        arEnsureRelative(parent);
+        hint = document.createElement('div');
+        hint.id = 'go-green-hint';
+        hint.textContent = '✊ Make a fist to hold the sign!';
+        hint.style.cssText = 'position:absolute;left:50%;bottom:16px;transform:translateX(-50%);' +
+            'padding:10px 18px;border-radius:999px;background:rgba(0,0,0,0.65);color:#fff;' +
+            'font:700 18px Arial,sans-serif;pointer-events:none;z-index:5;white-space:nowrap;' +
+            'opacity:0;transition:opacity 0.25s;';
+        parent.appendChild(hint);
+    }
+    if (hint.dataset.shown === String(show)) return;
+    hint.dataset.shown = String(show);
+    hint.style.opacity = show ? '1' : '0';
+}
+
+function drawRpGoGreenAccessory(ctx, geometry, width, height, time) {
+    const sign = RP_GO_GREEN;
+    const image = sign.image;
+    updateGoGreenHint(true);
+
+    if (sign.debug) drawGoGreenDebug(ctx, width, sign.debugText);
+
+    if (!sign.handLandmarker) {
+        sign.debugText = sign.loadFailedAt ? 'hand model FAILED to load (check network / console)' : 'hand model loading...';
+        ensureHandLandmarkerReady();
+        return;
+    }
+    if (sign.imageFailed) { sign.debugText = 'IMAGE NOT FOUND: put the PNG in the propsforphototaking folder'; return; }
+    if (!image.complete || !image.naturalWidth) { sign.debugText = 'image loading...'; return; }
+
+    const video = arEl('video');
+    if (video && video.readyState >= 2 && video.currentTime !== sign.lastVideoTime) {
+        sign.lastVideoTime = video.currentTime;
+        const result = sign.handLandmarker.detectForVideo(video, performance.now());
+        const detected = result?.landmarks?.[0] || null;
+        if (detected) {
+            const isFist = isFistGesture(detected, width, height);
+            sign.lastHand = detected;
+            if (isFist) sign.lastSeen = time;
+            sign.debugText = 'hand: YES | fist: ' + (isFist ? 'YES' : 'NO');
+        } else {
+            sign.debugText = 'hand: NO';
+        }
+    }
+
+    if (!sign.lastHand || time - sign.lastSeen > sign.holdMs) {
+        sign.pos = null;
+        return;
+    }
+
+    const hand = sign.lastHand;
+    const wrist = hand[0];
+    const middleBase = hand[9];
+    const palm = [0, 5, 9, 17].map((i) => hand[i]);
+    const targetX = (palm.reduce((sum, p) => sum + p.x, 0) / palm.length) * width;
+    const targetY = (palm.reduce((sum, p) => sum + p.y, 0) / palm.length) * height;
+
+    let targetAngle = Math.atan2((middleBase.y - wrist.y) * height, (middleBase.x - wrist.x) * width) + Math.PI / 2;
+    targetAngle = Math.max(-0.7, Math.min(0.7, targetAngle));
+
+    if (!sign.pos) {
+        sign.pos = { x: targetX, y: targetY };
+        sign.angle = targetAngle;
+    } else {
+        sign.pos.x += (targetX - sign.pos.x) * sign.smoothing;
+        sign.pos.y += (targetY - sign.pos.y) * sign.smoothing;
+        sign.angle += (targetAngle - sign.angle) * sign.smoothing;
+    }
+
+    const drawWidth = geometry.eyeDistance * sign.widthEyes;
+    const drawHeight = drawWidth * (image.naturalHeight / image.naturalWidth);
+    updateGoGreenHint(false);
+    ctx.save();
+    ctx.translate(sign.pos.x, sign.pos.y);
+    ctx.rotate(sign.angle);
+    if (isMirrored) ctx.scale(-1, 1);
+    ctx.drawImage(image, -drawWidth * sign.anchorX, -drawHeight * sign.anchorY, drawWidth, drawHeight);
+    ctx.restore();
+}
+
+const FINGER_HEART = {
+    src: '/assets/propsforphototaking/fingerheart.png',   // optional; a drawn heart is used if missing
+    sizeEyes: 0.9,
+    pinchRatio: 0.4,    // not triggering? raise it (0.55). Too easy? lower it (0.35)
+    curlRatio: 0.8,
+    smoothing: 0.5, holdMs: 600, popMs: 280,
+    debug: false, debugText: '',
+    image: new Image(), imageOk: false,
+    handLandmarker: null, loadPromise: null, loadFailedAt: 0,
+    lastVideoTime: -1, lastHand: null, lastSeen: 0, shownSince: 0, pos: null
+};
+FINGER_HEART.image.onload = () => { FINGER_HEART.imageOk = true; };
+FINGER_HEART.image.onerror = () => { FINGER_HEART.imageOk = false; };
+FINGER_HEART.image.src = FINGER_HEART.src;
+
+function ensureFingerHeartLandmarkerReady() { return arLoadHandLandmarker(FINGER_HEART, 'finger heart'); }
+
+function isFingerHeartGesture(hand, width, height) {
+    const dist = (a, b) => Math.hypot((a.x - b.x) * width, (a.y - b.y) * height);
+    const handSize = Math.max(1, dist(hand[0], hand[9]), dist(hand[5], hand[17]) * 1.15, dist(hand[0], hand[5]));
+
+    let pinchValue = Infinity;
+    [3, 4].forEach((t) => {
+        [6, 7, 8].forEach((i) => {
+            pinchValue = Math.min(pinchValue, dist(hand[t], hand[i]) / handSize);
+        });
+    });
+
+    const curlValues = [[12, 9], [16, 13], [20, 17]].map(([tip, knuckle]) => dist(hand[tip], hand[knuckle]) / handSize);
+    const curlValue = Math.max(...curlValues);
+
+    const pinched = pinchValue < FINGER_HEART.pinchRatio;
+    const othersCurled = curlValue < FINGER_HEART.curlRatio;
+
+    FINGER_HEART.debugText =
+        `pinch ${pinchValue.toFixed(2)} (<${FINGER_HEART.pinchRatio}) ${pinched ? 'OK' : 'X'} | ` +
+        `curl ${curlValue.toFixed(2)} (<${FINGER_HEART.curlRatio}) ${othersCurled ? 'OK' : 'X'} | ` +
+        `img ${FINGER_HEART.imageOk ? 'OK' : 'NOT FOUND'}`;
+
+    return pinched && othersCurled;
+}
+
+function drawFingerHeartAccessory(ctx, geometry, width, height, time) {
+    const heart = FINGER_HEART;
+
+    if (heart.debug) {
+        ctx.save();
+        if (isMirrored) { ctx.translate(width, 0); ctx.scale(-1, 1); }
+        ctx.font = '700 16px Arial';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'alphabetic';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+        ctx.fillRect(8, 8, Math.min(width - 16, 900), 30);
+        ctx.fillStyle = '#00ff66';
+        ctx.fillText(heart.debugText || '', 16, 29);
+        ctx.restore();
+    }
+
+    if (!heart.handLandmarker) {
+        heart.debugText = heart.loadFailedAt ? 'hand model FAILED to load (check network / console)' : 'hand model loading...';
+        ensureFingerHeartLandmarkerReady();
+        return;
+    }
+
+    const video = arEl('video');
+    if (video && video.readyState >= 2 && video.currentTime !== heart.lastVideoTime) {
+        heart.lastVideoTime = video.currentTime;
+        const result = heart.handLandmarker.detectForVideo(video, performance.now());
+        const hands = result?.landmarks || [];
+
+        let chosen = null;
+        let isHeart = false;
+        for (const h of hands) {
+            if (isFingerHeartGesture(h, width, height)) { chosen = h; isHeart = true; break; }
+        }
+        if (!chosen && hands.length) chosen = hands[0];
+
+        if (chosen) {
+            heart.lastHand = chosen;
+            if (isHeart) heart.lastSeen = time;
+        } else {
+            heart.debugText = 'hand: NO (not detected)';
+        }
+    }
+
+    if (!heart.lastHand || time - heart.lastSeen > heart.holdMs) {
+        heart.pos = null;
+        heart.shownSince = 0;
+        return;
+    }
+    if (!heart.shownSince) heart.shownSince = time;
+
+    const thumbTip = heart.lastHand[4];
+    const indexTip = heart.lastHand[8];
+    const targetX = ((thumbTip.x + indexTip.x) / 2) * width;
+    const targetY = ((thumbTip.y + indexTip.y) / 2) * height;
+
+    if (!heart.pos) {
+        heart.pos = { x: targetX, y: targetY };
+    } else {
+        heart.pos.x += (targetX - heart.pos.x) * heart.smoothing;
+        heart.pos.y += (targetY - heart.pos.y) * heart.smoothing;
+    }
+
+    const t = Math.min(1, (time - heart.shownSince) / heart.popMs);
+    const c1 = 1.70158, c3 = c1 + 1;
+    const popScale = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    const size = geometry.eyeDistance * heart.sizeEyes;
+    const bob = Math.sin(time / 300) * size * 0.04;
+
+    ctx.save();
+    ctx.translate(heart.pos.x, heart.pos.y - size * 0.55 + bob);
+    ctx.scale(popScale, popScale);
+    if (isMirrored) ctx.scale(-1, 1);
+
+    if (heart.imageOk && heart.image.complete && heart.image.naturalWidth) {
+        const drawHeight = size * (heart.image.naturalHeight / heart.image.naturalWidth);
+        ctx.drawImage(heart.image, -size / 2, -drawHeight / 2, size, drawHeight);
+    } else {
+        const s = size / 2;
+        ctx.shadowColor = 'rgba(255, 77, 121, 0.7)';
+        ctx.shadowBlur = size * 0.25;
+        ctx.fillStyle = '#ff4d79';
+        ctx.beginPath();
+        ctx.moveTo(0, s * 0.9);
+        ctx.bezierCurveTo(-s * 1.3, s * 0.1, -s * 0.8, -s * 0.9, 0, -s * 0.35);
+        ctx.bezierCurveTo(s * 0.8, -s * 0.9, s * 1.3, s * 0.1, 0, s * 0.9);
+        ctx.closePath();
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.55)';
+        ctx.beginPath();
+        ctx.ellipse(-s * 0.42, -s * 0.22, s * 0.16, s * 0.1, -0.6, 0, Math.PI * 2);
+        ctx.fill();
+    }
+    ctx.restore();
+}
+
+// ---------------------------------------------------------------------------
+// 5) Segmentation (person / hand mask) -> hands hide worn props, background replacement
+// ---------------------------------------------------------------------------
+const FX = {
+    bg: 'none',             // none | blur | rp-background1 | rp-background2
+    occlusion: true,        // hands hide worn props (crown, ears, sunglasses)
+    segmentEveryMs: 45
+};
+const WORN_PROPS = ['rp-crown', 'rp-mouse-ears', 'rp-sticker-sunglasses'];
+
+const SEG = {
+    segmenter: null, loadPromise: null, failedAt: 0,
+    w: 0, h: 0, maskId: 0, maskTime: -99999,
+    personCanvas: null, skinCanvas: null,
+    personData: null, skinData: null, prev: null,
+    lastRun: 0, lastVideoTime: -1, lastTs: 0, ready: false
+};
+const SEG_TUNE = { lo: 0.35, hi: 0.75, smoothing: 0.6 };
+function smoothstep(a, b, x) {
+    const t = Math.max(0, Math.min(1, (x - a) / (b - a)));
+    return t * t * (3 - 2 * t);
+}
+
+function ensureSegmenter() {
+    if (SEG.segmenter) return Promise.resolve(SEG.segmenter);
+    if (SEG.loadPromise) return SEG.loadPromise;
+    if (SEG.failedAt && performance.now() - SEG.failedAt < 10000) return Promise.resolve(null);
+
+    SEG.loadPromise = import(AR_MEDIAPIPE_URL)
+        .then(async ({ ImageSegmenter, FilesetResolver }) => {
+            const vision = await FilesetResolver.forVisionTasks(AR_WASM_URL);
+            const options = (delegate) => ({
+                baseOptions: { modelAssetPath: SEGMENTER_MODEL_URL, delegate },
+                runningMode: 'VIDEO',
+                outputCategoryMask: false,
+                outputConfidenceMasks: true
+            });
+            try {
+                SEG.segmenter = await ImageSegmenter.createFromOptions(vision, options('GPU'));
+            } catch (gpuError) {
+                console.warn('Segmenter GPU delegate failed, using CPU:', gpuError);
+                SEG.segmenter = await ImageSegmenter.createFromOptions(vision, options('CPU'));
+            }
+            SEG.failedAt = 0;
+            return SEG.segmenter;
+        })
+        .catch((error) => {
+            console.error('Failed to load the segmentation model:', error);
+            SEG.failedAt = performance.now();
+            showVisitorNotice('photo-form-alert', 'Background effect is unavailable right now. Photo capture still works.');
+            return null;
+        })
+        .finally(() => { SEG.loadPromise = null; });
+    return SEG.loadPromise;
+}
+
+function consumeSegmentationResult(result) {
+    const masks = result && result.confidenceMasks;
+    if (!masks || !masks.length) return;
+    const bgMask = masks[0];
+    const skinMask = masks[2] || null;
+    const w = bgMask.width, h = bgMask.height;
+    const bg = bgMask.getAsFloat32Array();
+    const skin = skinMask ? skinMask.getAsFloat32Array() : null;
+
+    if (!SEG.personCanvas) { SEG.personCanvas = document.createElement('canvas'); SEG.skinCanvas = document.createElement('canvas'); }
+    if (SEG.personCanvas.width !== w || SEG.personCanvas.height !== h) {
+        SEG.personCanvas.width = SEG.skinCanvas.width = w;
+        SEG.personCanvas.height = SEG.skinCanvas.height = h;
+    }
+    if (!SEG.personData || SEG.personData.width !== w || SEG.personData.height !== h) {
+        SEG.personData = new ImageData(w, h);
+        SEG.skinData = new ImageData(w, h);
+        SEG.prev = null;
+    }
+    if (!SEG.prev || SEG.prev.length !== w * h) {
+        SEG.prev = new Float32Array(w * h);
+        for (let i = 0; i < w * h; i++) SEG.prev[i] = 1 - bg[i];
+    }
+
+    const person = SEG.personData, skinImg = SEG.skinData, k = SEG_TUNE.smoothing;
+    for (let i = 0, n = w * h; i < n; i++) {
+        const p = SEG.prev[i] + ((1 - bg[i]) - SEG.prev[i]) * k;
+        SEG.prev[i] = p;
+        person.data[i * 4 + 3] = Math.round(smoothstep(SEG_TUNE.lo, SEG_TUNE.hi, p) * 255);
+        skinImg.data[i * 4 + 3] = skin && skin[i] > 0.5 ? 255 : 0;
+    }
+    SEG.personCanvas.getContext('2d').putImageData(person, 0, 0);
+    SEG.skinCanvas.getContext('2d').putImageData(skinImg, 0, 0);
+    SEG.w = w; SEG.h = h;
+    SEG.maskId++;
+    SEG.maskTime = performance.now();
+    SEG.ready = true;
+    masks.forEach((m) => { if (m.close) m.close(); });
+}
+
+function runSegmentation(video, now, force) {
+    if (!SEG.segmenter || !video || video.readyState < 2) return;
+    if (!force && (now - SEG.lastRun < FX.segmentEveryMs || video.currentTime === SEG.lastVideoTime)) return;
+    SEG.lastRun = now;
+    SEG.lastVideoTime = video.currentTime;
+    const ts = Math.max(Math.floor(performance.now()), SEG.lastTs + 1);
+    SEG.lastTs = ts;
+    try {
+        let called = false;
+        const returned = SEG.segmenter.segmentForVideo(video, ts, (result) => { called = true; consumeSegmentationResult(result); });
+        if (!called && returned) consumeSegmentationResult(returned);
+    } catch (error) {
+        console.warn('Segmentation skipped:', error.message);
+    }
+}
+
+// hands from the gesture recogniser (filled by the wrapper further down)
+const HANDS = { landmarks: [], time: -99999, id: 0 };
+
+function convexHull(points) {
+    const pts = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+    if (pts.length < 3) return pts;
+    const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    const lower = [];
+    pts.forEach((p) => { while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop(); lower.push(p); });
+    const upper = [];
+    for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop(); upper.push(p); }
+    upper.pop(); lower.pop();
+    return lower.concat(upper);
+}
+
+const OCC = { canvas: null, key: '' };
+function getOcclusionMask() {
+    const now = performance.now();
+    if (!FX.occlusion || !SEG.skinCanvas || !HANDS.landmarks.length) return null;
+    if (now - HANDS.time > 500 || now - SEG.maskTime > 500) return null;
+    const key = SEG.maskId + ':' + HANDS.id;
+    if (OCC.canvas && OCC.key === key) return OCC.canvas;
+
+    const w = SEG.w, h = SEG.h;
+    if (!OCC.canvas) OCC.canvas = document.createElement('canvas');
+    if (OCC.canvas.width !== w || OCC.canvas.height !== h) { OCC.canvas.width = w; OCC.canvas.height = h; }
+    const g = OCC.canvas.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = '#000';
+    HANDS.landmarks.forEach((hand) => {
+        const pts = hand.map((p) => ({ x: p.x * w, y: p.y * h }));
+        const hull = convexHull(pts);
+        if (hull.length < 3) return;
+        const cx = hull.reduce((s, p) => s + p.x, 0) / hull.length;
+        const cy = hull.reduce((s, p) => s + p.y, 0) / hull.length;
+        g.beginPath();
+        hull.forEach((p, i) => {
+            const x = cx + (p.x - cx) * 1.35, y = cy + (p.y - cy) * 1.35;
+            if (i) g.lineTo(x, y); else g.moveTo(x, y);
+        });
+        g.closePath();
+        g.fill();
+    });
+    g.globalCompositeOperation = 'destination-in';
+    g.drawImage(SEG.skinCanvas, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    OCC.key = key;
+    return OCC.canvas;
+}
+
+// draw something, then rub out the part a hand is covering
+function withOcclusion(ctx, width, height, drawFn) {
+    const mask = getOcclusionMask();
+    if (!mask) { drawFn(ctx); return; }
+    const off = getScratch('occlusion', width, height);
+    const og = off.getContext('2d');
+    og.setTransform(ctx.getTransform());
+    drawFn(og);
+    og.globalCompositeOperation = 'destination-out';
+    if (CANVAS_FILTER_OK) og.filter = 'blur(2px)';
+    og.drawImage(mask, 0, 0, width, height);
+    og.filter = 'none';
+    og.globalCompositeOperation = 'source-over';
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.drawImage(off, 0, 0);
+    ctx.restore();
+}
+
+// ---- background images ----
+const IMAGE_BACKGROUNDS = [
+    { id: 'rp-background1', label: 'RP Campus', src: '/assets/propsforphototaking/rpbackground1.png' },
+    { id: 'rp-background2', label: 'RP Background 2', src: '/assets/propsforphototaking/rpbackground2.png' }
+];
+IMAGE_BACKGROUNDS.forEach((bg) => {
+    bg.image = new Image();
+    bg.image.onerror = () => console.error('[' + bg.label + '] image not found: ' + bg.src);
+    bg.image.src = bg.src;
+    bg.cache = {};
+});
+
+function makeBackdrop(kind, w, h) {
+    const bg = IMAGE_BACKGROUNDS.find((b) => b.id === kind);
+    const key = w + 'x' + h + (isMirrored ? 'm' : '');
+    if (bg && bg.cache[key]) return bg.cache[key];
+
+    const c = document.createElement('canvas');
+    c.width = w;
+    c.height = h;
+    const g = c.getContext('2d');
+    const img = bg && bg.image;
+
+    if (!(img && img.complete && img.naturalWidth > 0)) {
+        g.fillStyle = '#fdf6e9';     // plain cream until the image has loaded (or if it is missing); not cached
+        g.fillRect(0, 0, w, h);
+        return c;
+    }
+
+    g.save();
+    if (isMirrored) { g.translate(w, 0); g.scale(-1, 1); }   // pre-flip: the mirrored drawing space flips it back
+    const scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);   // "cover" fit
+    const dw = img.naturalWidth * scale, dh = img.naturalHeight * scale;
+    g.drawImage(img, (w - dw) / 2, (h - dh) / 2, dw, dh);
+    g.restore();
+
+    bg.cache[key] = c;
+    return c;
+}
+
+function drawBackdrop(ctx, video, w, h) {
+    if (FX.bg === 'blur') {
+        const tmp = getScratch('bg-blur', w, h);
+        blurInto(tmp.getContext('2d'), video, w, h, Math.max(8, w / 45));
+        ctx.drawImage(tmp, 0, 0, w, h);
+    } else {
+        ctx.drawImage(makeBackdrop(FX.bg, w, h), 0, 0, w, h);
+    }
+}
+
+function drawPersonCutout(ctx, video, w, h) {
+    const p = getScratch('person', w, h);
+    const pg = p.getContext('2d');
+    pg.drawImage(video, 0, 0, w, h);
+    pg.globalCompositeOperation = 'destination-in';
+    if (CANVAS_FILTER_OK) pg.filter = 'blur(2.5px)';
+    pg.drawImage(SEG.personCanvas, 0, 0, w, h);
+    pg.filter = 'none';
+    pg.globalCompositeOperation = 'source-over';
+    ctx.drawImage(p, 0, 0, w, h);
+}
+
+function composeFrame(ctx, video, w, h) {
+    if (FX.bg !== 'none' && SEG.ready && SEG.personCanvas) {
+        drawBackdrop(ctx, video, w, h);
+        drawPersonCutout(ctx, video, w, h);
+    } else {
+        ctx.drawImage(video, 0, 0, w, h);
+    }
+}
+
+// Saved photo / boomerang frames: feedback.js's own beauty filter still runs, but on the
+// background-replaced frame (it only needs something drawImage can read).
+const drawPhotoWithBeautyFilterBase = drawPhotoWithBeautyFilter;
+drawPhotoWithBeautyFilter = function (ctx, image, x, y, width, height, faceDetection = null) {
+    let source = image;
+    try {
+        if (FX.bg !== 'none' && SEG.segmenter && image instanceof HTMLVideoElement) {
+            runSegmentation(image, performance.now(), true);
+            if (SEG.ready && SEG.personCanvas) {
+                const tmp = getScratch('photo-bg', width, height);
+                composeFrame(tmp.getContext('2d'), image, width, height);
+                source = tmp;
+            }
+        }
+    } catch (error) {
+        console.error('Background effect failed, saving the plain photo:', error);
+        source = image;
+    }
+    drawPhotoWithBeautyFilterBase(ctx, source, x, y, width, height, faceDetection);
+};
+
+// Live view: effects drawn on a canvas that sits over the <video>
+function fxStep(now) {
+    const video = arEl('video');
+    const wrap = arCameraView();
+    if (!video || !wrap) return;
+
+    const active = stream && arPhotoPageActive() && video.readyState >= 2 && video.videoWidth > 0;
+    const handsFresh = HANDS.landmarks.length > 0 && now - HANDS.time < 400;
+    const needOcclusion = FX.occlusion && WORN_PROPS.includes(selectedFaceAccessory) && handsFresh;
+
+    if (active && (FX.bg !== 'none' || needOcclusion)) {
+        if (!SEG.segmenter) ensureSegmenter(); else runSegmentation(video, now);
+    }
+    if (!active || FX.bg === 'none') { wrap.classList.remove('fx-on'); return; }
+
+    const canvas = arEnsureOverlayCanvas('fx-canvas', true);   // below the prop canvases
+    if (!canvas || !resizeFaceAccessoryCanvas(video, canvas)) return;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (isMirrored) {
+        ctx.translate(canvas.width, 0);
+        ctx.scale(-1, 1);
+    }
+    composeFrame(ctx, video, canvas.width, canvas.height);
+    canvas.style.filter = video.style.filter || '';   // keep feedback.js's live beauty look
+    wrap.classList.add('fx-on');                       // hides the plain <video>, shows this canvas
+}
+
+function fxLoop(now) {
+    try { fxStep(now); } catch (error) { console.error('Effects step failed (loop keeps running):', error); }
+    requestAnimationFrame(fxLoop);
+}
+
+// ---------------------------------------------------------------------------
+// 6) Drawing all face props  [replaces feedback.js drawFaceAccessory; old filters kept]
+// ---------------------------------------------------------------------------
+function drawFaceAccessory(ctx, landmarks, width, height, time = performance.now()) {
+    if (selectedFaceAccessory === 'none' || !landmarks) return;
+
+    const faces = faceListByFirst.get(landmarks) || [landmarks];   // every face found in this frame
+    faces.forEach((faceLandmarks, index) => {
+        const geometry = getFaceAccessoryGeometry(faceLandmarks, width, height);
+        if (geometry) drawOneFaceAccessory(ctx, geometry, width, height, time, index === 0);
+    });
+}
+
+// primary = the first face. Props that follow a hand or keep a smoothed position are drawn for it only.
+function drawOneFaceAccessory(ctx, geometry, width, height, time, primary) {
+    const worn = (drawFn) => withOcclusion(ctx, width, height, drawFn);
+
+    switch (selectedFaceAccessory) {
+        // ----- original feedback.js filters -----
+        case 'glasses': drawGlassesAccessory(ctx, geometry); break;
+        case 'sparkle-glasses': drawSparkleGlassesAccessory(ctx, geometry, time); break;
+        case 'moustache': drawMoustacheAccessory(ctx, geometry); break;
+        case 'hat': drawHatAccessory(ctx, geometry); break;
+        case 'flower-crown': drawFlowerCrownAccessory(ctx, geometry, time); break;
+        case 'halo': drawHaloAccessory(ctx, geometry, time); break;
+        case 'blush': drawBlushAccessory(ctx, geometry, time); break;
+        case 'party': drawPartyAccessory(ctx, geometry, time); break;
+        case 'rp-shades': drawRpShadesAccessory(ctx, geometry); break;
+        case 'leaf-crown': drawLeafCrownAccessory(ctx, geometry, time); break;
+        case 'graduation': drawGraduationAccessory(ctx, geometry, time); break;
+        // ----- new filters -----
+        case 'rp-crown': worn((c) => drawRpCrownAccessory(c, geometry)); break;
+        case 'rp-mouse-ears': worn((c) => drawRpMouseEarsAccessory(c, geometry)); break;
+        case 'rp-sticker-sunglasses': worn((c) => drawRpSunglassesAccessory(c, geometry)); break;
+        case 'rp-future-ready': if (primary) drawRpFutureReadyAccessory(ctx, geometry, width, height, time); break;
+        case 'RPGoGreenGoRP!': if (primary) drawRpGoGreenAccessory(ctx, geometry, width, height, time); break;
+        case 'fingerheart': if (primary) drawFingerHeartAccessory(ctx, geometry, width, height, time); break;
+    }
+}
+
+function renderLiveFaceAccessory() {
+    const video = arEl('video');
+    const canvas = arEl('face-accessory-canvas');
+    if (!video || !canvas || !stream) {
+        clearFaceAccessoryCanvas();
+        faceAccessoryAnimationFrame = null;
+        return;
+    }
+
+    try {
+        if (resizeFaceAccessoryCanvas(video, canvas)) {
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (selectedFaceAccessory !== 'none') {
+                if (video.currentTime !== latestFaceAccessoryVideoTime) {
+                    latestFaceAccessoryLandmarks = detectFaceAccessoryLandmarks(video);
+                    latestFaceAccessoryVideoTime = video.currentTime;
+                }
+                drawFaceAccessoryForCameraView(ctx, latestFaceAccessoryLandmarks, canvas.width, canvas.height);
+            }
+        }
+    } catch (error) {
+        console.error('Face accessory render error:', error);   // one bad prop must not stop the preview
+    }
+
+    faceAccessoryAnimationFrame = requestAnimationFrame(renderLiveFaceAccessory);
+}
+
+function stopFaceAccessoryPreview() {
+    if (faceAccessoryAnimationFrame) {
+        cancelAnimationFrame(faceAccessoryAnimationFrame);
+        faceAccessoryAnimationFrame = null;
+    }
+    latestFaceAccessoryLandmarks = null;
+    latestFaceAccessoryVideoTime = -1;
+    clearFaceAccessoryCanvas();
+    updateGoGreenHint(false);
+}
+
+// ---------------------------------------------------------------------------
+// 7) Hand gesture stickers: open hand -> mascot, two index fingers -> bear frame, one finger -> graduation bear
+// ---------------------------------------------------------------------------
+const GESTURE_DELEGATE = 'CPU';   // CPU avoids clashing with the face tracker; try 'GPU' if it feels slow
+
+const HAND_PROP = {
+    enabled: true,
+    src: '/assets/propsforphototaking/rp-mascot.png',
+    widthHands: 1.0, holdGap: 0.45, holdMs: 300, graceMs: 400, followMs: 90
+};
+const PARADE_PROP = {
+    enabled: true,
+    src: '/assets/propsforphototaking/rp-parade.png',
+    widthHands: 0.5, maxWidth: 0.95, minWidth: 0.35, bearsAt: 0.80, minHandGap: 0.2,
+    holdMs: 300, graceMs: 400, followMs: 90
+};
+const POINT = {
+    enabled: true,
+    src: '/assets/propsforphototaking/rp-bear-pointe.png',
+    widthHands: 1.7, gap: 0.25, holdMs: 300, graceMs: 400, followMs: 90
+};
+const HAND_SHAPE = { minScore: 0.6, straightJoint: 1.08, straightKnuckle: 1.6, curledKnuckle: 1.45 };
+
+let gestureRecognizer = null;
+let gestureRecognizerLoadPromise = null;
+let lastGestureTimestamp = 0;
+let handGestureFrame = null;
+let lastGestureCheckTime = 0;
+
+function createPropState(config) {
+    const image = new Image();
+    image.src = config.src;
+    return {
+        config, image,
+        active: false, openSince: null, lostSince: null,
+        popStart: 0, hideStart: 0, lastScale: 0,
+        x: 0, y: 0, size: 0,
+        targetX: 0, targetY: 0, targetSize: 0,
+        lastMoveTime: 0, hasPosition: false
+    };
+}
+const mascotState = createPropState(HAND_PROP);
+const paradeState = createPropState(PARADE_PROP);
+const pointerState = createPropState(POINT);
+const allPropStates = [mascotState, paradeState, pointerState];
+
+function setGestureDebug(text) {
+    const el = arEl('gesture-debug');
+    if (el && el.textContent !== text) el.textContent = text;
+}
+function setGestureHint(text, state) {
+    const el = arEl('gesture-hint');
+    if (!el) return;
+    el.textContent = text;
+    el.dataset.state = state || '';
+}
+function refreshGestureBadge() {
+    const badge = arEl('gesture-indicator');
+    if (!badge) return;
+    if (paradeState.active) {
+        badge.textContent = '\u261D\uFE0F RP pose detected!';
+        badge.classList.add('show');
+    } else if (mascotState.active) {
+        badge.textContent = '\uD83D\uDD90\uFE0F Open hand detected!';
+        badge.classList.add('show');
+    } else {
+        badge.classList.remove('show');
+    }
+}
+
+async function ensureGestureRecognizerReady() {
+    if (gestureRecognizer) return gestureRecognizer;
+    if (gestureRecognizerLoadPromise) return gestureRecognizerLoadPromise;
+
+    gestureRecognizerLoadPromise = import(AR_MEDIAPIPE_URL)
+        .then(async ({ GestureRecognizer, FilesetResolver }) => {
+            const vision = await FilesetResolver.forVisionTasks(AR_WASM_URL);
+            const options = (delegate) => ({
+                baseOptions: { modelAssetPath: GESTURE_RECOGNIZER_MODEL_URL, delegate },
+                runningMode: 'VIDEO',
+                numHands: 2
+            });
+            const other = GESTURE_DELEGATE === 'CPU' ? 'GPU' : 'CPU';
+            try {
+                gestureRecognizer = await GestureRecognizer.createFromOptions(vision, options(GESTURE_DELEGATE));
+            } catch (firstError) {
+                console.warn('Gesture ' + GESTURE_DELEGATE + ' delegate failed, trying ' + other + ':', firstError);
+                gestureRecognizer = await GestureRecognizer.createFromOptions(vision, options(other));
+            }
+            setGestureHint('\uD83D\uDD90\uFE0F Open palm  \u00B7  \u261D\uFE0F One finger  \u00B7  \u261D\uFE0F\u261D\uFE0F Two fingers  \u00B7  \uD83D\uDE09 Wink', 'ready');
+            return gestureRecognizer;
+        })
+        .catch((error) => {
+            console.error('Failed to load Gesture Recognizer:', error);
+            setGestureHint('Hand gestures unavailable - pick a prop from the tray instead.', 'error');
+            throw error;
+        })
+        .finally(() => { gestureRecognizerLoadPromise = null; });
+
+    return gestureRecognizerLoadPromise;
+}
+
+function fingerTipRatios(landmarks, videoWidth, videoHeight, knuckle, joint, tip) {
+    const dist = (p, q) => Math.hypot((p.x - q.x) * videoWidth, (p.y - q.y) * videoHeight);
+    const wrist = landmarks[0];
+    const tipFar = dist(landmarks[tip], wrist);
+    return {
+        overJoint: tipFar / dist(landmarks[joint], wrist),
+        overKnuckle: tipFar / dist(landmarks[knuckle], wrist)
+    };
+}
+const FINGERS = { index: [5, 6, 8], middle: [9, 10, 12], ring: [13, 14, 16], pinky: [17, 18, 20] };
+
+function isFingerStraight(landmarks, w, h, finger) {
+    const [knuckle, joint, tip] = FINGERS[finger];
+    const r = fingerTipRatios(landmarks, w, h, knuckle, joint, tip);
+    return r.overJoint > HAND_SHAPE.straightJoint && r.overKnuckle > HAND_SHAPE.straightKnuckle;
+}
+function isFingerCurled(landmarks, w, h, finger) {
+    const [knuckle, joint, tip] = FINGERS[finger];
+    return fingerTipRatios(landmarks, w, h, knuckle, joint, tip).overKnuckle < HAND_SHAPE.curledKnuckle;
+}
+function isOpenHand(landmarks, w, h) {
+    return ['index', 'middle', 'ring', 'pinky'].every((f) => isFingerStraight(landmarks, w, h, f));
+}
+function isPointingHand(landmarks, w, h) {
+    return isFingerStraight(landmarks, w, h, 'index') &&
+        ['middle', 'ring', 'pinky'].every((f) => isFingerCurled(landmarks, w, h, f));
+}
+function getHandCenter(landmarks, w, h) {
+    const ids = [0, 5, 9, 13, 17];
+    return {
+        x: ids.reduce((sum, id) => sum + landmarks[id].x, 0) / ids.length * w,
+        y: ids.reduce((sum, id) => sum + landmarks[id].y, 0) / ids.length * h,
+        size: Math.hypot((landmarks[9].x - landmarks[0].x) * w, (landmarks[9].y - landmarks[0].y) * h)
+    };
+}
+
+function trackProp(state, target, now) {
+    const cfg = state.config;
+    if (target && cfg.enabled) {
+        state.lostSince = null;
+        if (state.openSince === null) state.openSince = now;
+        state.targetX = target.x;
+        state.targetY = target.y;
+        state.targetSize = target.size;
+        if (!state.hasPosition) {
+            state.x = target.x; state.y = target.y; state.size = target.size;
+            state.hasPosition = true;
+            state.lastMoveTime = now;
+        }
+        if (!state.active && now - state.openSince >= cfg.holdMs) {
+            state.active = true;
+            state.popStart = now;
+        }
+    } else {
+        state.openSince = null;
+        if (state.active) {
+            if (state.lostSince === null) state.lostSince = now;
+            if (now - state.lostSince > cfg.graceMs) {
+                state.active = false;
+                state.hideStart = now;
+                state.hasPosition = false;
+            }
+        }
+    }
+}
+
+function resetGestureProps() {
+    allPropStates.forEach((state) => {
+        state.active = false;
+        state.openSince = null;
+        state.lostSince = null;
+        state.hasPosition = false;
+        state.lastScale = 0;
+    });
+    refreshGestureBadge();
+}
+
+// the three wrappers below all hook this one function (order: base -> pointer -> hands tap -> peace)
+function handleGestureResult(result, videoWidth, videoHeight, now) {
+    const hands = (result && result.landmarks) ? result.landmarks : [];
+    const labels = [];
+    let openTarget = null;
+    const pointingHands = [];
+
+    hands.forEach((landmarks, i) => {
+        const category = result.gestures && result.gestures[i] ? result.gestures[i][0] : null;
+        const sure = category && category.score >= HAND_SHAPE.minScore ? category.categoryName : null;
+        const open = isOpenHand(landmarks, videoWidth, videoHeight) || sure === 'Open_Palm';
+        const pointing = !open && (isPointingHand(landmarks, videoWidth, videoHeight) || sure === 'Pointing_Up');
+
+        labels.push((category ? category.categoryName + ' ' + Math.round(category.score * 100) + '%' : 'hand') +
+            (open ? ' + open hand' : '') + (pointing ? ' + pointing' : ''));
+
+        if (open && !openTarget) openTarget = getHandCenter(landmarks, videoWidth, videoHeight);
+        if (pointing) pointingHands.push(getHandCenter(landmarks, videoWidth, videoHeight));
+    });
+    setGestureDebug('Camera sees: ' + (labels.length ? labels.join('  |  ') : 'no hand'));
+
+    let paradeTarget = null;
+    if (pointingHands.length >= 2) {
+        pointingHands.sort((a, b) => a.x - b.x);
+        const left = pointingHands[0], right = pointingHands[pointingHands.length - 1];
+        const gap = right.x - left.x;
+        if (gap >= videoWidth * PARADE_PROP.minHandGap) {
+            paradeTarget = { x: (left.x + right.x) / 2, y: (left.y + right.y) / 2, size: gap };
+        }
+    }
+
+    trackProp(mascotState, openTarget, now);
+    trackProp(paradeState, paradeTarget, now);
+    refreshGestureBadge();
+}
+
+// ONE finger up -> graduation bear (two fingers = bear frame instead, so they never clash)
+const handleGestureResultWithoutPointer = handleGestureResult;
+handleGestureResult = function (result, videoWidth, videoHeight, now) {
+    handleGestureResultWithoutPointer(result, videoWidth, videoHeight, now);
+
+    const hands = (result && result.landmarks) ? result.landmarks : [];
+    const pointing = [];
+    hands.forEach((landmarks, i) => {
+        const category = result.gestures && result.gestures[i] ? result.gestures[i][0] : null;
+        const sure = category && category.score >= HAND_SHAPE.minScore ? category.categoryName : null;
+        const open = isOpenHand(landmarks, videoWidth, videoHeight) || sure === 'Open_Palm';
+        const isPointing = !open && (isPointingHand(landmarks, videoWidth, videoHeight) || sure === 'Pointing_Up');
+        if (isPointing) {
+            const c = getHandCenter(landmarks, videoWidth, videoHeight);
+            pointing.push({ x: landmarks[8].x * videoWidth, y: landmarks[8].y * videoHeight, size: c.size });
+        }
+    });
+
+    const allowed = POINT.enabled && HAND_PROP.enabled && !paradeState.active;
+    trackProp(pointerState, (allowed && pointing.length === 1) ? pointing[0] : null, now);
+};
+
+// hands for the occlusion mask
+const handleGestureResultWithoutHandsTap = handleGestureResult;
+handleGestureResult = function (result, videoWidth, videoHeight, now) {
+    HANDS.landmarks = (result && result.landmarks) ? result.landmarks : [];
+    HANDS.time = now;
+    HANDS.id++;
+    handleGestureResultWithoutHandsTap(result, videoWidth, videoHeight, now);
+};
+
+function updatePropPosition(state, now) {
+    if (!state.hasPosition) return;
+    const dt = Math.min(100, now - state.lastMoveTime);
+    state.lastMoveTime = now;
+    const k = 1 - Math.exp(-dt / state.config.followMs);
+    state.x += (state.targetX - state.x) * k;
+    state.y += (state.targetY - state.y) * k;
+    state.size += (state.targetSize - state.size) * k;
+}
+
+function easeOutBack(t) {
+    const c1 = 1.70158, c3 = c1 + 1;
+    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+}
+
+function getPropAnimation(state, now) {
+    if (state.active) {
+        const scale = easeOutBack(Math.min(1, (now - state.popStart) / 450));
+        state.lastScale = scale;
+        return { scale, alpha: 1 };
+    }
+    const t = (now - state.hideStart) / 250;
+    if (t >= 1 || state.lastScale <= 0) return null;
+    return { scale: state.lastScale * (1 - t * 0.4), alpha: 1 - t };
+}
+
+function isImageReady(image) { return !!image && image.complete && image.naturalWidth > 0; }
+
+function paintSticker(ctx, image, centerX, centerY, width, height, animation) {
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, animation.alpha);
+    ctx.translate(centerX, centerY);
+    ctx.scale(animation.scale, animation.scale);
+    if (isMirrored) ctx.scale(-1, 1);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = height * 0.04;
+    ctx.drawImage(image, -width / 2, -height / 2, width, height);
+    ctx.restore();
+}
+
+function drawMascot(ctx, now) {
+    const s = mascotState;
+    if (!HAND_PROP.enabled || !isImageReady(s.image) || !s.size) return;
+    const animation = getPropAnimation(s, now);
+    if (!animation) return;
+
+    const width = s.size * HAND_PROP.widthHands;
+    const height = width * (s.image.naturalHeight / s.image.naturalWidth);
+    const bob = Math.sin(now / 420) * s.size * 0.12;
+    const x = Math.min(Math.max(s.x, width / 2), ctx.canvas.width - width / 2);
+    let y = s.y - s.size * HAND_PROP.holdGap - height / 2 + bob;
+    y = Math.max(y, height / 2);
+    paintSticker(ctx, s.image, x, y, width, height, animation);
+}
+
+function drawParade(ctx, now) {
+    const s = paradeState;
+    if (!PARADE_PROP.enabled || !isImageReady(s.image) || !s.size) return;
+    const animation = getPropAnimation(s, now);
+    if (!animation) return;
+
+    const canvasWidth = ctx.canvas.width;
+    let width = s.size * PARADE_PROP.widthHands;
+    width = Math.min(Math.max(width, canvasWidth * PARADE_PROP.minWidth), canvasWidth * PARADE_PROP.maxWidth);
+    const height = width * (s.image.naturalHeight / s.image.naturalWidth);
+    const bob = Math.sin(now / 520) * height * 0.012;
+    const x = Math.min(Math.max(s.x, width / 2), canvasWidth - width / 2);
+    let top = s.y - PARADE_PROP.bearsAt * height + bob;
+    top = Math.max(top, 0);
+    paintSticker(ctx, s.image, x, top + height / 2, width, height, animation);
+}
+
+function drawPointerSticker(ctx, now) {
+    const s = pointerState;
+    if (!POINT.enabled || !HAND_PROP.enabled || !isImageReady(s.image) || !s.size) return;
+    const animation = getPropAnimation(s, now);
+    if (!animation) return;
+
+    const width = s.size * POINT.widthHands;
+    const height = width * (s.image.naturalHeight / s.image.naturalWidth);
+    const bob = Math.sin(now / 420) * s.size * 0.1;
+    const x = Math.min(Math.max(s.x, width / 2), ctx.canvas.width - width / 2);
+    let y = s.y - s.size * POINT.gap - height / 2 + bob;
+    y = Math.max(y, height / 2);
+    paintSticker(ctx, s.image, x, y, width, height, animation);
+}
+
+function drawHandGestureProps(ctx, now) {
+    drawParade(ctx, now);    // big sticker first, so the mascot is never hidden behind it
+    drawMascot(ctx, now);
+    drawPointerSticker(ctx, now);
+}
+
+function handGestureLoop() {
+    try { handGestureStep(); } catch (error) { console.error('Hand gesture step failed (loop keeps running):', error); }
+    handGestureFrame = requestAnimationFrame(handGestureLoop);
+}
+
+function handGestureStep() {
+    const video = arEl('video');
+    const now = performance.now();
+    const showing = video && stream && arPhotoPageActive() && video.readyState >= 2;
+
+    if (showing) {
+        const canvas = arEnsureOverlayCanvas('hand-gesture-canvas');
+        if (!canvas) return;
+
+        if (gestureRecognizer && now - lastGestureCheckTime > 50) {   // ~20 checks per second
+            lastGestureCheckTime = now;
+            try {
+                const timestamp = Math.max(Math.floor(now), lastGestureTimestamp + 1);   // MediaPipe needs increasing timestamps
+                lastGestureTimestamp = timestamp;
+                const result = gestureRecognizer.recognizeForVideo(video, timestamp);
+                handleGestureResult(result, video.videoWidth, video.videoHeight, now);
+            } catch (error) {
+                console.warn('Gesture check skipped:', error.message);
+            }
+        }
+
+        if (resizeFaceAccessoryCanvas(video, canvas)) {
+            const ctx = canvas.getContext('2d');
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            if (isMirrored) {
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+            }
+            allPropStates.forEach((state) => updatePropPosition(state, now));
+            drawHandGestureProps(ctx, now);
+        }
+    } else {
+        const canvas = arEl('hand-gesture-canvas');
+        if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        resetGestureProps();
+    }
+}
+
+function startHandGestureProps() {
+    if (handGestureFrame) return;
+    setGestureHint('Loading hand gestures...', 'loading');
+    ensureGestureRecognizerReady().catch(() => { });
+    handGestureLoop();
+}
+
+// ---------------------------------------------------------------------------
+// 8) Wink -> RP heart sticker beside the winking eye
+// ---------------------------------------------------------------------------
+const WINK = {
+    enabled: true,
+    src: '/assets/propsforphototaking/rp-heart.png',
+    stickerMs: 3000, widthEyes: 0.35, sideGap: 0.45, lift: 0.8,
+    holdMs: 150, cooldownMs: 1000,
+    eyeClosedMax: 0.17, eyeOpenMin: 0.21, ratioMax: 0.6
+};
+const winkState = {
+    started: false, landmarkerRequested: false, frame: null, lastCheckTime: 0,
+    geometry: null, eyes: null, winkSince: null, latched: false,
+    lastTriggerTime: -99999, sticker: null
+};
+const winkImage = new Image();
+winkImage.src = WINK.src;
+
+function setWinkDebug(text) {
+    const el = arEl('wink-debug');
+    if (el && el.textContent !== text) el.textContent = text;
+}
+
+// ONE face detection per video frame, shared by every loop (two calls in one millisecond would crash MediaPipe)
+const detectFaceLandmarksOnce = detectFaceAccessoryLandmarks;
+let winkLandmarkCache = { time: -1, result: null };
+detectFaceAccessoryLandmarks = function (video) {
+    if (video && video.currentTime === winkLandmarkCache.time) return winkLandmarkCache.result;
+    const result = detectFaceLandmarksOnce(video);
+    winkLandmarkCache = { time: video ? video.currentTime : -1, result };
+    return result;
+};
+
+function eyeAspectRatio(landmarks, w, h, ids) {
+    const p = ids.map((id) => ({ x: landmarks[id].x * w, y: landmarks[id].y * h }));
+    const d = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+    return (d(p[1], p[5]) + d(p[2], p[4])) / (2 * d(p[0], p[3]));
+}
+const RIGHT_EYE_POINTS = [33, 160, 158, 133, 153, 144];
+const LEFT_EYE_POINTS = [362, 385, 387, 263, 373, 380];
+
+function isWinking(earLeft, earRight) {
+    const closed = Math.min(earLeft, earRight);
+    const open = Math.max(earLeft, earRight);
+    return closed < WINK.eyeClosedMax && open > WINK.eyeOpenMin && closed / open < WINK.ratioMax;
+}
+function getEyeCenter(landmarks, w, h, ids) {
+    const a = landmarks[ids[0]], b = landmarks[ids[3]];
+    return { x: (a.x + b.x) / 2 * w, y: (a.y + b.y) / 2 * h };
+}
+
+function checkFaceForWink(landmarks, w, h, now) {
+    if (!landmarks) {
+        winkState.winkSince = null;
+        winkState.latched = false;
+        setWinkDebug('Wink check: no face found');
+        return;
+    }
+    winkState.geometry = getFaceAccessoryGeometry(landmarks, w, h);
+    winkState.eyes = {
+        right: getEyeCenter(landmarks, w, h, RIGHT_EYE_POINTS),
+        left: getEyeCenter(landmarks, w, h, LEFT_EYE_POINTS)
+    };
+
+    const earLeft = eyeAspectRatio(landmarks, w, h, LEFT_EYE_POINTS);
+    const earRight = eyeAspectRatio(landmarks, w, h, RIGHT_EYE_POINTS);
+    const winking = isWinking(earLeft, earRight);
+    setWinkDebug('Eyes: left ' + earLeft.toFixed(2) + ' | right ' + earRight.toFixed(2) + (winking ? '  \uD83D\uDE09 wink!' : ''));
+
+    if (!winking) {
+        winkState.winkSince = null;
+        winkState.latched = false;
+        return;
+    }
+    if (winkState.winkSince === null) winkState.winkSince = now;
+    if (!winkState.latched &&
+        now - winkState.winkSince >= WINK.holdMs &&
+        now - winkState.lastTriggerTime >= WINK.cooldownMs) {
+        winkState.latched = true;
+        winkState.lastTriggerTime = now;
+        if (WINK.enabled) {
+            winkState.sticker = { eye: earLeft < earRight ? 'left' : 'right', start: now };
+        }
+    }
+}
+
+function drawWinkSticker(ctx, now) {
+    const sticker = winkState.sticker;
+    const g = winkState.geometry;
+    const eyes = winkState.eyes;
+    if (!WINK.enabled || !sticker || !g || !eyes) return;
+    if (!winkImage.complete || !winkImage.naturalWidth) return;
+
+    const age = now - sticker.start;
+    if (age < 0 || age > WINK.stickerMs) return;
+    const pop = easeOutBack(Math.min(1, age / 450));
+    const fade = age > WINK.stickerMs - 400 ? (WINK.stickerMs - age) / 400 : 1;
+
+    const eye = sticker.eye === 'left' ? eyes.left : eyes.right;
+    const outward = sticker.eye === 'left' ? 1 : -1;
+    const sideX = Math.cos(g.angle), sideY = Math.sin(g.angle);
+    const upX = Math.sin(g.angle), upY = -Math.cos(g.angle);
+
+    const width = g.eyeDistance * WINK.widthEyes;
+    const height = width * (winkImage.naturalHeight / winkImage.naturalWidth);
+    const bob = Math.sin(age / 380) * g.eyeDistance * 0.05;
+
+    let x = eye.x + outward * sideX * g.eyeDistance * WINK.sideGap + upX * g.eyeDistance * WINK.lift;
+    let y = eye.y + outward * sideY * g.eyeDistance * WINK.sideGap + upY * g.eyeDistance * WINK.lift + bob;
+    x = Math.min(Math.max(x, width / 2), ctx.canvas.width - width / 2);
+    y = Math.min(Math.max(y, height / 2), ctx.canvas.height - height / 2);
+
+    ctx.save();
+    ctx.globalAlpha = Math.max(0, fade);
+    ctx.translate(x, y);
+    ctx.rotate(g.angle * 0.5 + Math.sin(age / 450) * 0.05 - 0.25);
+    ctx.scale(pop, pop);
+    if (isMirrored) ctx.scale(-1, 1);
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+    ctx.shadowBlur = height * 0.04;
+    ctx.drawImage(winkImage, -width / 2, -height / 2, width, height);
+    ctx.restore();
+}
+
+function winkLoop() {
+    try { winkStep(); } catch (error) { console.error('Wink step failed (loop keeps running):', error); }
+    winkState.frame = requestAnimationFrame(winkLoop);
+}
+
+function winkStep() {
+    const video = arEl('video');
+    const now = performance.now();
+    if (!video) return;
+
+    const pageShowing = stream && arPhotoPageActive() && video.readyState >= 2;
+    if (!pageShowing) {
+        const canvas = arEl('wink-canvas');
+        if (canvas) canvas.getContext('2d').clearRect(0, 0, canvas.width, canvas.height);
+        winkState.sticker = null;
+        winkState.winkSince = null;
+        winkState.latched = false;
+        return;
+    }
+    const canvas = arEnsureOverlayCanvas('wink-canvas');
+    if (!canvas) return;
+
+    if (!faceLandmarker) {
+        if (!winkState.landmarkerRequested) {
+            winkState.landmarkerRequested = true;
+            ensureFaceLandmarkerReady().catch(() => {
+                winkState.landmarkerRequested = false;
+                setGestureHint('Wink stickers unavailable - pick a prop from the tray instead.', 'error');
+            });
+        }
+    } else if (now - winkState.lastCheckTime > 40) {      // ~25 checks per second
+        winkState.lastCheckTime = now;
+        const landmarks = detectFaceAccessoryLandmarks(video);
+        checkFaceForWink(landmarks, video.videoWidth, video.videoHeight, now);
+    }
+
+    if (resizeFaceAccessoryCanvas(video, canvas)) {
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (isMirrored) {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+        drawWinkSticker(ctx, now);
+    }
+}
+
+function startWinkProps() {
+    if (winkState.started) return;
+    winkState.started = true;
+    winkLoop();
+}
+
+// ---------------------------------------------------------------------------
+// 9) Reactions: smile -> sparkles, open mouth -> confetti (visitor opt-in)
+// ---------------------------------------------------------------------------
+const REACT = {
+    enabled: false,
+    smileMin: 0.55, smileHoldMs: 200, sparkleEveryMs: 110,
+    jawMin: 0.5, jawHoldMs: 150, popCooldownMs: 1500, maxParticles: 160
+};
+const reactState = {
+    particles: [], blend: {}, blendOn: false,
+    smileSince: null, jawSince: null, jawLatched: false,
+    lastSparkle: 0, lastPop: -99999, lastFrame: 0
+};
+
+// expression scores (blendshapes) ride along with every landmark result
+const getLandmarksWithoutBlend = getFaceAccessoryLandmarksFromResult;
+getFaceAccessoryLandmarksFromResult = function (result) {
+    const cats = result && result.faceBlendshapes && result.faceBlendshapes[0]
+        ? result.faceBlendshapes[0].categories : null;
+    const scores = {};
+    if (cats) cats.forEach((c) => { scores[c.categoryName] = c.score; });
+    reactState.blend = scores;
+    return getLandmarksWithoutBlend(result);
+};
+
+function spawnSparkle(g) {
+    const a = Math.random() * Math.PI * 2;
+    const spread = 0.8 + Math.random() * 0.5;
+    reactState.particles.push({
+        type: 'sparkle',
+        x: g.noseTip.x + Math.cos(a) * g.eyeDistance * 1.0 * spread,
+        y: g.noseTip.y - g.eyeDistance * 0.2 + Math.sin(a) * g.faceHeight * 0.6 * spread,
+        vx: 0, vy: -g.eyeDistance * 0.25, grav: 0,
+        age: 0, life: 900,
+        size: g.eyeDistance * (0.07 + Math.random() * 0.07),
+        rot: 0, vr: 0,
+        color: ['#facc15', '#ffffff', '#f9a8d4'][Math.floor(Math.random() * 3)]
+    });
+}
+
+function spawnConfetti(g) {
+    const colors = ['#16a34a', '#facc15', '#60a5fa', '#f472b6', '#ffffff'];
+    for (let i = 0; i < 28; i++) {
+        const dir = -Math.PI / 2 + (Math.random() - 0.5) * 2;
+        const speed = g.eyeDistance * (2 + Math.random() * 2.5);
+        reactState.particles.push({
+            type: 'confetti',
+            x: g.upperLip.x, y: g.upperLip.y,
+            vx: Math.cos(dir) * speed, vy: Math.sin(dir) * speed,
+            grav: g.eyeDistance * 5,
+            age: 0, life: 1400,
+            size: g.eyeDistance * (0.05 + Math.random() * 0.04),
+            rot: Math.random() * 6, vr: (Math.random() - 0.5) * 12,
+            color: colors[Math.floor(Math.random() * colors.length)]
+        });
+    }
+}
+
+function updateParticles(dtMs) {
+    const dt = dtMs / 1000;
+    const list = reactState.particles;
+    for (let i = list.length - 1; i >= 0; i--) {
+        const p = list[i];
+        p.age += dtMs;
+        if (p.age >= p.life) { list.splice(i, 1); continue; }
+        p.vy += p.grav * dt;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.rot += p.vr * dt;
+    }
+    if (list.length > REACT.maxParticles) list.splice(0, list.length - REACT.maxParticles);
+}
+
+function drawReactions(ctx) {
+    reactState.particles.forEach((p) => {
+        const t = p.age / p.life;
+        const alpha = t < 0.6 ? 1 : Math.max(0, 1 - (t - 0.6) / 0.4);
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate(p.rot);
+        ctx.fillStyle = p.color;
+        if (p.type === 'sparkle') {
+            const s = p.size * (0.7 + Math.sin(p.age / 90) * 0.3);
+            ctx.beginPath();
+            for (let i = 0; i < 8; i++) {
+                const r = i % 2 === 0 ? s : s * 0.3;
+                const a = (Math.PI * i) / 4;
+                if (i === 0) ctx.moveTo(Math.cos(a) * r, Math.sin(a) * r);
+                else ctx.lineTo(Math.cos(a) * r, Math.sin(a) * r);
+            }
+            ctx.closePath();
+            ctx.fill();
+        } else {
+            ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2);
+        }
+        ctx.restore();
+    });
+}
+
+function setBlendshapesOn(stateObj) {
+    if (faceLandmarker && !stateObj.blendOn) {
+        stateObj.blendOn = true;
+        try {
+            const p = faceLandmarker.setOptions({ outputFaceBlendshapes: true });
+            if (p && p.catch) p.catch((e) => console.warn('Blendshapes not enabled:', e));
+        } catch (e) {
+            console.warn('Blendshapes not enabled:', e);
+        }
+    }
+}
+
+function reactStep(now) {
+    const video = arEl('video');
+    if (!video) return;
+
+    const dtMs = Math.min(50, reactState.lastFrame ? now - reactState.lastFrame : 16);
+    reactState.lastFrame = now;
+    const showing = stream && arPhotoPageActive() && video.readyState >= 2;
+
+    if (!showing || !REACT.enabled) {
+        reactState.particles.length = 0;
+        reactState.smileSince = null;
+        reactState.jawSince = null;
+        reactState.jawLatched = false;
+        const old = arEl('reaction-canvas');
+        if (old) old.getContext('2d').clearRect(0, 0, old.width, old.height);
+        return;
+    }
+    const canvas = arEnsureOverlayCanvas('reaction-canvas');
+    if (!canvas) return;
+
+    setBlendshapesOn(reactState);
+
+    const b = reactState.blend;
+    const g = winkState.geometry;
+    const smile = ((b.mouthSmileLeft || 0) + (b.mouthSmileRight || 0)) / 2;
+    const jaw = b.jawOpen || 0;
+
+    if (g) {
+        if (smile >= REACT.smileMin) {
+            if (reactState.smileSince === null) reactState.smileSince = now;
+            if (now - reactState.smileSince >= REACT.smileHoldMs && now - reactState.lastSparkle >= REACT.sparkleEveryMs) {
+                reactState.lastSparkle = now;
+                spawnSparkle(g);
+            }
+        } else {
+            reactState.smileSince = null;
+        }
+
+        if (jaw >= REACT.jawMin) {
+            if (reactState.jawSince === null) reactState.jawSince = now;
+            if (!reactState.jawLatched && now - reactState.jawSince >= REACT.jawHoldMs && now - reactState.lastPop >= REACT.popCooldownMs) {
+                reactState.jawLatched = true;
+                reactState.lastPop = now;
+                spawnConfetti(g);
+            }
+        } else {
+            reactState.jawSince = null;
+            reactState.jawLatched = false;
+        }
+    }
+
+    updateParticles(dtMs);
+
+    if (resizeFaceAccessoryCanvas(video, canvas)) {
+        const ctx = canvas.getContext('2d');
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (isMirrored) {
+            ctx.translate(canvas.width, 0);
+            ctx.scale(-1, 1);
+        }
+        drawReactions(ctx);
+    }
+}
+
+function reactLoop(now) {
+    try { reactStep(now); } catch (error) { console.error('Reaction step failed (loop keeps running):', error); }
+    requestAnimationFrame(reactLoop);
+}
+
+// ---------------------------------------------------------------------------
+// 10) Smile capture + Peace-sign capture
+//     (they use feedback.js's own capture: photo or boomerang, with its own countdown)
+// ---------------------------------------------------------------------------
+const AUTO = { captureEnabled: false, smileMin: 0.6, smileHoldMs: 800, rearmMs: 700, cooldownMs: 2500 };
+const autoState = { hint: null, flash: null, blendOn: false, armed: false, busy: false, smileSince: null, neutralSince: null, lastCapture: -99999 };
+
+const PEACE = { enabled: false, minScore: 0.7, holdMs: 600, rearmMs: 800, cooldownMs: 2000 };
+const peaceState = { hint: null, armed: false, holdSince: null, neutralSince: null, lastTrigger: -99999 };
+
+function arCaptureBusy() {
+    const btn = arEl('capture-btn');
+    return !btn || btn.disabled;   // feedback.js disables the button during countdown / capture
+}
+
+function setAutoHint(text) {
+    const el = autoState.hint;
+    if (!el) return;
+    if (!text) { el.style.opacity = '0'; return; }
+    if (el.textContent !== text) el.textContent = text;
+    el.style.opacity = '1';
+}
+function setPeaceHint(text) {
+    const el = peaceState.hint;
+    if (!el) return;
+    if (!text) { el.style.opacity = '0'; return; }
+    if (el.textContent !== text) el.textContent = text;
+    el.style.opacity = '1';
+}
+function flashCameraView() {
+    const f = autoState.flash;
+    if (!f) return;
+    f.style.transition = 'none';
+    f.style.opacity = '0.85';
+    requestAnimationFrame(() => {
+        f.style.transition = 'opacity 0.35s ease-out';
+        f.style.opacity = '0';
+    });
+}
+
+// smile = capture right now (no countdown), in whichever mode (photo / boomerang) is selected
+function triggerSmileCapture() {
+    const btn = arEl('capture-btn');
+    if (autoState.busy || arCaptureBusy()) return;
+    autoState.busy = true;
+    btn.disabled = true;
+    flashCameraView();
+    const run = captureMode === 'boomerang'
+        ? captureBoomerangIfFaceDetected()
+        : (photoStripEnabled ? captureStripIfFaceDetected() : capturePhotoIfFaceDetected());
+    Promise.resolve(run)
+        .catch((e) => console.error('Auto capture failed:', e))
+        .finally(() => { autoState.busy = false; btn.disabled = false; });
+}
+
+function autoStep(now) {
+    const video = arEl('video');
+    if (!video) return;
+    const showing = stream && arPhotoPageActive() && video.readyState >= 2;
+
+    if (!showing || !AUTO.captureEnabled) {
+        autoState.smileSince = null;
+        autoState.neutralSince = null;
+        autoState.armed = false;     // after a retake, wait for a neutral face before arming again
+        setAutoHint('');
+        return;
+    }
+
+    setBlendshapesOn(autoState);
+
+    const b = reactState.blend || {};
+    const hasFace = Object.keys(b).length > 0;
+    const smile = ((b.mouthSmileLeft || 0) + (b.mouthSmileRight || 0)) / 2;
+
+    let hintText = '';
+    if (hasFace && !autoState.busy && !arCaptureBusy()) {
+        if (!autoState.armed) {
+            if (smile < AUTO.smileMin * 0.6) {
+                if (autoState.neutralSince === null) autoState.neutralSince = now;
+                if (now - autoState.neutralSince >= AUTO.rearmMs) autoState.armed = true;
+            } else {
+                autoState.neutralSince = null;
+            }
+            hintText = 'Relax your face for a moment...';
+        } else if (smile >= AUTO.smileMin) {
+            if (autoState.smileSince === null) autoState.smileSince = now;
+            const held = now - autoState.smileSince;
+            hintText = '\uD83D\uDE0A Hold that smile...';
+            if (held >= AUTO.smileHoldMs && now - autoState.lastCapture >= AUTO.cooldownMs) {
+                autoState.armed = false;
+                autoState.neutralSince = null;
+                autoState.smileSince = null;
+                autoState.lastCapture = now;
+                triggerSmileCapture();
+                hintText = '';
+            }
+        } else {
+            autoState.smileSince = null;
+            hintText = '\uD83D\uDE0A Smile to take a photo';
+        }
+    } else if (!hasFace) {
+        autoState.smileSince = null;
+    }
+    setAutoHint(hintText);
+}
+
+function autoLoop(now) {
+    try { autoStep(now); } catch (error) { console.error('Smile capture step failed (loop keeps running):', error); }
+    requestAnimationFrame(autoLoop);
+}
+
+// peace sign (MediaPipe gesture "Victory") -> presses feedback.js's own capture button logic (with its countdown)
+const handleGestureResultWithoutPeace = handleGestureResult;
+handleGestureResult = function (result, videoWidth, videoHeight, now) {
+    handleGestureResultWithoutPeace(result, videoWidth, videoHeight, now);
+    peaceStep(result, now);
+};
+
+function peaceStep(result, now) {
+    const s = peaceState;
+    if (!PEACE.enabled || arCaptureBusy()) {
+        s.armed = false;
+        s.holdSince = null;
+        s.neutralSince = null;
+        setPeaceHint('');
+        return;
+    }
+
+    const lists = (result && result.gestures) ? result.gestures : [];
+    const peace = lists.some((list) => list[0] && list[0].categoryName === 'Victory' && list[0].score >= PEACE.minScore);
+
+    if (!s.armed) {
+        if (!peace) {
+            if (s.neutralSince === null) s.neutralSince = now;
+            if (now - s.neutralSince >= PEACE.rearmMs) s.armed = true;
+            setPeaceHint('\u270C\uFE0F Show a peace sign to take a photo');
+        } else {
+            s.neutralSince = null;
+            setPeaceHint('Lower your hand for a moment...');
+        }
+        return;
+    }
+
+    if (peace) {
+        if (s.holdSince === null) s.holdSince = now;
+        if (now - s.holdSince >= PEACE.holdMs && now - s.lastTrigger >= PEACE.cooldownMs) {
+            s.armed = false;
+            s.neutralSince = null;
+            s.holdSince = null;
+            s.lastTrigger = now;
+            setPeaceHint('');
+            capturePhoto().catch((e) => console.error('Peace capture failed:', e));
+        } else {
+            setPeaceHint('\u270C\uFE0F Hold it...');
+        }
+    } else {
+        s.holdSince = null;
+        setPeaceHint('\u270C\uFE0F Show a peace sign to take a photo');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// 11) Buttons, dropdown, hint pills (all built from JS - no HTML edits)
+// ---------------------------------------------------------------------------
+const arControls = { refresh: () => { } };
+
+function arBuildControls() {
+    const row = arEffectsRow();
+    if (!row || row.dataset.built) return;
+    row.dataset.built = '1';
+
+    const mk = (title) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'toggle';
+        b.title = title;
+        row.appendChild(b);
+        return b;
+    };
+    const fxBtn = mk('Hand gestures and wink stickers on/off');
+    const reactBtn = mk('Smile and open-mouth reactions on/off');
+    const smileBtn = mk('Hold a smile to take the photo automatically');
+    const countdownBtn = mk('Countdown before the photo on/off');
+    const peaceBtn = mk('Hold a peace sign to take the photo');
+    const stripBtn = mk('Take 4 photos and combine them into one strip');
+
+    arControls.refresh = () => {
+        fxBtn.textContent = '\u2728 Effects';
+        reactBtn.textContent = '\uD83D\uDE04 Reactions';
+        smileBtn.textContent = '\uD83D\uDE0A Smile capture';
+        countdownBtn.textContent = '\u23F1\uFE0F Countdown';
+        peaceBtn.textContent = '\u270C\uFE0F Peace capture';
+        stripBtn.textContent = '\uD83C\uDF9E\uFE0F Photo strip';
+        fxBtn.setAttribute('aria-pressed', String(!!WINK.enabled));
+        reactBtn.setAttribute('aria-pressed', String(!!REACT.enabled));
+        smileBtn.setAttribute('aria-pressed', String(!!AUTO.captureEnabled));
+        countdownBtn.setAttribute('aria-pressed', String(!!visitorCountdownEnabled));
+        peaceBtn.setAttribute('aria-pressed', String(!!PEACE.enabled));
+        stripBtn.setAttribute('aria-pressed', String(!!photoStripEnabled));
+    };
+
+    fxBtn.addEventListener('click', () => {
+        const on = !WINK.enabled;
+        WINK.enabled = HAND_PROP.enabled = PARADE_PROP.enabled = POINT.enabled = on;
+        if (!on) { winkState.sticker = null; resetGestureProps(); }
+        arControls.refresh();
+    });
+    reactBtn.addEventListener('click', () => {
+        REACT.enabled = !REACT.enabled;
+        if (!REACT.enabled) reactState.particles.length = 0;
+        arControls.refresh();
+    });
+    smileBtn.addEventListener('click', () => {
+        AUTO.captureEnabled = !AUTO.captureEnabled;
+        autoState.armed = false;
+        autoState.neutralSince = null;
+        autoState.smileSince = null;
+        arControls.refresh();
+    });
+    countdownBtn.addEventListener('click', () => {
+        visitorCountdownEnabled = !visitorCountdownEnabled;
+        arControls.refresh();
+    });
+    peaceBtn.addEventListener('click', () => {
+        PEACE.enabled = !PEACE.enabled;
+        peaceState.armed = false;
+        peaceState.holdSince = null;
+        peaceState.neutralSince = null;
+        if (!PEACE.enabled) setPeaceHint('');
+        arControls.refresh();
+    });
+    stripBtn.addEventListener('click', () => {
+        photoStripEnabled = !photoStripEnabled;
+        arControls.refresh();
+    });
+
+    // Background select already exists in feedback.html (inside the Beauty/Background card)
+    const select = arEl('bg-select');
+    if (select && !select.dataset.bound) {
+        select.dataset.bound = '1';
+        select.addEventListener('change', async () => {
+            FX.bg = select.value;
+            resetInactivityTimer();
+            if (FX.bg === 'none') return;
+            updateFaceDetectionStatus('Loading background effect...', 'loading');
+            const seg = await ensureSegmenter();
+            if (seg) {
+                updateFaceDetectionStatus('Face detection ready.', 'success');
+            } else {
+                FX.bg = 'none';
+                select.value = 'none';
+                updateFaceDetectionStatus('Background effect unavailable. Photo capture still works.', 'error');
+            }
+        });
+    }
+
+    arControls.refresh();
+}
+
+function arBuildOverlays() {
+    const view = arCameraView();
+    if (!view || autoState.hint) return;
+    arEnsureRelative(view);
+
+    const makePill = (css) => {
+        const el = document.createElement('div');
+        el.style.cssText = 'position:absolute;left:50%;transform:translateX(-50%);padding:10px 18px;border-radius:999px;' +
+            'background:rgba(0,0,0,0.65);color:#fff;font:700 18px Arial,sans-serif;pointer-events:none;z-index:9;' +
+            'white-space:nowrap;opacity:0;transition:opacity 0.25s;' + css;
+        view.appendChild(el);
+        return el;
+    };
+    autoState.hint = makePill('bottom:16px;');
+    peaceState.hint = makePill('top:60px;font-size:16px;padding:8px 16px;');
+
+    const flash = document.createElement('div');
+    flash.style.cssText = 'position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;z-index:10;';
+    view.appendChild(flash);
+    autoState.flash = flash;
+}
+
+// ---------------------------------------------------------------------------
+// 12) Photo / boomerang capture: bake the new stickers into the saved picture
+//     feedback.js draws every capture frame on #photo-canvas and calls drawFaceAccessory()
+// ---------------------------------------------------------------------------
+const drawFaceAccessoryWithoutExtras = drawFaceAccessory;
+drawFaceAccessory = function (ctx, landmarks, width, height, time) {
+    drawFaceAccessoryWithoutExtras(ctx, landmarks, width, height, time);
+    if (ctx.canvas.id === 'photo-canvas') {          // only the saved photo; the live view has its own canvases
+        const now = performance.now();
+        drawHandGestureProps(ctx, now);
+        drawWinkSticker(ctx, now);
+        if (REACT.enabled) drawReactions(ctx);
+    }
+};
+
+// ---------------------------------------------------------------------------
+// 13) Hook into feedback.js's own camera start + visitor reset
+// ---------------------------------------------------------------------------
+// start the hand / wink loops only once the camera really runs (so landing + mobile never load the models)
+const initializeCameraBeforeAR = initializeCamera;
+initializeCamera = async function () {
+    await initializeCameraBeforeAR.apply(this, arguments);
+    if (stream) {
+        startHandGestureProps();
+        startWinkProps();
+    }
+};
+
+// every new visitor starts clean
+function arResetForNextVisitor() {
+    FX.bg = 'none';
+    const select = arEl('bg-select');
+    if (select) select.value = 'none';
+    winkState.sticker = null;
+    resetGestureProps();
+    reactState.particles.length = 0;
+    REACT.enabled = false;
+    AUTO.captureEnabled = false;
+    PEACE.enabled = false;
+    WINK.enabled = HAND_PROP.enabled = PARADE_PROP.enabled = POINT.enabled = true;
+    visitorCountdownEnabled = true;
+    photoStripEnabled = false;
+    setAutoHint('');
+    setPeaceHint('');
+    arControls.refresh();
+}
+['returnToLandingPage', 'submitAnother', 'goHomeFromFeedbackForm'].forEach((name) => {
+    const original = window[name];
+    if (typeof original !== 'function') return;
+    window[name] = function () {
+        const result = original.apply(this, arguments);
+        try { arResetForNextVisitor(); } catch (error) { console.warn('AR reset failed:', error); }
+        return result;
+    };
+});
+
+
+arOnReady(() => {
+    arEnsureStyles();
+    arInjectFilterCards();
+    arBuildControls();
+    arBuildOverlays();
+    requestAnimationFrame(fxLoop);
+    requestAnimationFrame(reactLoop);
+    requestAnimationFrame(autoLoop);
+});
+
+function stripProgressBox() {
+    const view = document.getElementById('camera-container');
+    if (!view) return null;
+    if (getComputedStyle(view).position === 'static') view.style.position = 'relative';
+    let box = document.getElementById('strip-progress');
+    if (!box) {
+        box = document.createElement('div');
+        box.id = 'strip-progress';
+        box.style.cssText = 'position:absolute;top:12px;left:50%;transform:translateX(-50%);z-index:12;' +
+            'display:flex;flex-direction:column;align-items:center;gap:8px;pointer-events:none;';
+        view.appendChild(box);
+    }
+    return box;
+}
+
+function renderStripProgress(current, total, thumbs) {
+    const box = stripProgressBox();
+    if (!box) return;
+    box.style.display = 'flex';
+    const slots = Array.from({ length: total }, (_, i) => thumbs[i]
+        ? `<img src="${thumbs[i]}" style="width:64px;height:48px;object-fit:cover;border-radius:8px;border:2px solid #16a34a;">`
+        : `<div style="width:64px;height:48px;border-radius:8px;border:2px dashed #fff;background:rgba(0,0,0,.35);color:#fff;display:flex;align-items:center;justify-content:center;font:700 16px Arial;">${i + 1}</div>`
+    ).join('');
+    box.innerHTML =
+        `<div style="padding:8px 18px;border-radius:999px;background:rgba(0,0,0,.7);color:#fff;font:700 18px Arial;">
+            Photo ${Math.min(current, total)} of ${total}</div>
+         <div style="display:flex;gap:8px;">${slots}</div>`;
+}
+
+function hideStripProgress() {
+    const box = document.getElementById('strip-progress');
+    if (box) { box.style.display = 'none'; box.innerHTML = ''; }
+}
+
+// Same overlay and look as the normal countdown: 3 ... 2 ... 1 then resolves
+function runShotCountdown(seconds) {
+    const overlay = document.getElementById('countdown-overlay');
+    const text = document.getElementById('countdown-text');
+    if (!overlay || !text || !seconds) return wait(600);
+    return new Promise((resolve) => {
+        let n = seconds;
+        text.textContent = n;
+        overlay.style.display = 'flex';
+        const timer = setInterval(() => {
+            n--;
+            if (n <= 0) {
+                clearInterval(timer);
+                overlay.style.display = 'none';
+                resolve();
+            } else {
+                text.textContent = n;
+            }
+        }, 1000);
+    });
+}
+
+async function captureStripIfFaceDetected() {
+    const STRIP_SHOTS = 3;
+    const CELL_ASPECT = 4 / 3;
+    const CELL_OUT_WIDTH = 640;
+    try {
+        updateFaceDetectionStatus('Checking for face...', 'loading');
+        const faceDetection = await detectFaceInCurrentFrame();
+        if (!faceDetection) {
+            updateFaceDetectionStatus('No face detected. Position your face in frame and try again.', 'error');
+            showVisitorNotice('photo-form-alert', 'No face detected. Please position your face clearly in the camera frame and capture again.', 'I could not see a face clearly. Move into the frame and try again.');
+            return false;
+        }
+
+        // Use the admin countdown (same value as a normal photo)
+        if (countdownSeconds === null) await loadCountdownTimer();
+        const perShotSeconds = visitorCountdownEnabled && Number.isInteger(countdownSeconds) ? countdownSeconds : 0;
+
+        const shots = [];
+        for (let i = 0; i < STRIP_SHOTS; i++) {
+            renderStripProgress(i + 1, STRIP_SHOTS, shots);
+            updateFaceDetectionStatus(`Photo ${i + 1} of ${STRIP_SHOTS}...`, 'loading');
+
+            await runShotCountdown(perShotSeconds);   // 3 2 1
+
+            const landmarks = await getCurrentFaceAccessoryLandmarks();
+            shots.push(captureVideoFrameDataUrl(faceDetection, landmarks));   // capture
+            if (typeof flashCameraView === 'function') flashCameraView();
+            renderStripProgress(i + 2, STRIP_SHOTS, shots);   // thumbnail appears
+            await wait(500);
+        }
+        hideStripProgress();
+
+        const images = await Promise.all(shots.map(src => loadImageElement(src)));
+        const srcW = images[0].naturalWidth, srcH = images[0].naturalHeight;
+        let cropW = srcW, cropH = srcW / CELL_ASPECT;
+        if (cropH > srcH) { cropH = srcH; cropW = srcH * CELL_ASPECT; }
+        const cropX = (srcW - cropW) / 2, cropY = (srcH - cropH) / 2;
+
+        const cellW = CELL_OUT_WIDTH, cellH = Math.round(CELL_OUT_WIDTH / CELL_ASPECT), gap = 12;
+        const canvas = document.createElement('canvas');
+        canvas.width = cellW + gap * 2;
+        canvas.height = cellH * STRIP_SHOTS + gap * (STRIP_SHOTS + 1);
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        images.forEach((img, i) => {
+            ctx.drawImage(img, cropX, cropY, cropW, cropH, gap, gap + i * (cellH + gap), cellW, cellH);
+        });
+
+        photoData = canvas.toDataURL('image/png');
+        photoStripDataUrl = photoData;
+        userData.photoSkipped = false;
+        userData.captureMode = 'photo';
+        boomerangFrames = [];
+        clearRestorableBoomerang();
+        userData.processedBoomerangFrames = null;
+        userData.boomerangFrameDelayMs = null;
+        userData.boomerangQuality = null;
+        stopFaceAccessoryPreview();
+        if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+
+        updateFaceDetectionStatus('Photo strip captured.', 'success');
+        cheerRpBear('Photo strip captured. Let us pick a frame.');
+        continueToStyle();
+        return true;
+    } catch (error) {
+        hideStripProgress();
+        console.error('Photo strip capture failed:', error);
+        updateFaceDetectionStatus('Photo strip failed. Please try again.', 'error');
+        showVisitorNotice('photo-form-alert', `Photo strip failed: ${error.message}`, 'The photo strip stumbled. Let us try again.');
+        return false;
+    }
+}// Retune the mouse ears so they sit on the head instead of floating
+
+let lastInactivityReset = 0;
+function resetInactivityTimer() {
+    if (document.body.classList.contains('submitting-feedback')) return;
+    const now = performance.now();
+    if (now - lastInactivityReset < 1000) return;   // at most once a second
+    lastInactivityReset = now;
+    startInactivityTimer();
+}
+
+// ============================================================================
+// NON-MIRRORED CAMERA BY DEFAULT
+// Live preview is normal (not flipped). The "Mirror View" button still works.
+// ============================================================================
+(function forceNonMirroredCamera() {
+    const style = document.createElement('style');
+    style.id = 'no-mirror-default-style';
+    style.textContent =
+        '#video{transform:none !important;-webkit-transform:none !important}' +
+        '#video.mirror{transform:scaleX(-1) !important;-webkit-transform:scaleX(-1) !important}' +
+        '#face-accessory-canvas,#fx-canvas,#hand-gesture-canvas,#wink-canvas,#reaction-canvas{' +
+        'transform:none !important;-webkit-transform:none !important}';
+    document.head.appendChild(style);
+
+    // Make sure the state and button label match "not mirrored" on load
+    document.addEventListener('DOMContentLoaded', () => {
+        isMirrored = false;
+        const video = document.getElementById('video');
+        if (video) video.classList.remove('mirror');
+        const mirrorBtn = document.getElementById('mirror-btn');
+        if (mirrorBtn) {
+            mirrorBtn.textContent = 'Mirror View';
+            mirrorBtn.setAttribute('aria-pressed', 'false');
+        }
+    });
+})();
+
+(function fixPropScale() {
+    // 1) Make every overlay canvas crop exactly like the video (object-fit: cover)
+    const style = document.createElement('style');
+    style.id = 'prop-canvas-cover-fix';
+    style.textContent =
+        '#face-accessory-canvas,#fx-canvas,#hand-gesture-canvas,#wink-canvas,#reaction-canvas{' +
+        'object-fit:cover !important;object-position:center !important}';
+    document.head.appendChild(style);
+
+    // 2) Stop head-nod from squashing the worn props vertically
+    const originalEstimate = estimateHeadPose;
+    estimateHeadPose = function () {
+        const pose = originalEstimate.apply(this, arguments);
+        return { cosYaw: pose.cosYaw, cosPitch: 1 };
+    };
+})();
+
+// ============================================================================
+// NON-MIRRORED CAMERA (final) - ignores the .mirror class, uses data-flip instead
+// ============================================================================
+(function noMirrorFinal() {
+    const old = document.getElementById('no-mirror-default-style');
+    if (old) old.remove();
+
+    const style = document.createElement('style');
+    style.id = 'no-mirror-final-style';
+    style.textContent =
+        'html body #video, html body #video.mirror{transform:none !important;-webkit-transform:none !important}' +
+        'html body #video[data-flip="1"]{transform:scaleX(-1) !important;-webkit-transform:scaleX(-1) !important}' +
+        'html body #face-accessory-canvas, html body #fx-canvas, html body #hand-gesture-canvas,' +
+        'html body #wink-canvas, html body #reaction-canvas{transform:none !important;-webkit-transform:none !important}';
+    document.head.appendChild(style);
+
+    function syncMirrorState() {
+        const video = document.getElementById('video');
+        const mirrorBtn = document.getElementById('mirror-btn');
+        if (video) {
+            video.classList.remove('mirror');
+            video.dataset.flip = isMirrored ? '1' : '0';
+        }
+        if (mirrorBtn) {
+            mirrorBtn.textContent = isMirrored ? 'Normal View' : 'Mirror View';
+            mirrorBtn.setAttribute('aria-pressed', String(isMirrored));
+        }
+    }
+
+    // Start not mirrored, right now and again once the page is ready
+    isMirrored = false;
+    syncMirrorState();
+    document.addEventListener('DOMContentLoaded', () => { isMirrored = false; syncMirrorState(); });
+
+    // The Mirror View button still works
+    const toggleMirrorBefore = toggleMirror;
+    toggleMirror = function () {
+        toggleMirrorBefore.apply(this, arguments);
+        syncMirrorState();
+    };
+
+    // Re-apply every time the camera starts (e.g. after Retake)
+    const initializeCameraBefore = initializeCamera;
+    initializeCamera = async function () {
+        await initializeCameraBefore.apply(this, arguments);
+        syncMirrorState();
+    };
+})();
+
+// ============================================================================
+// CUSTOM PHOTO STRIP FRAME
+// Strips get their own portrait frame instead of the standard landscape overlay.
+// Normal photos and boomerangs are untouched.
+// ============================================================================
+(function customStripFrame() {
+    const F = { cellW: 600, cellH: 450, gap: 20, side: 60, header: 150, footer: 160 };
+    const cache = { key: '', url: '' };
+
+    function isStrip() { return Boolean(photoData) && shouldContainPhoto(photoData); }
+
+    function drawLeaf(ctx, x, y, size, rot, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.55, size * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.5, 0);
+        ctx.lineTo(size * 0.5, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    async function buildStripFramedDataUrl() {
+        const themeColor = generateColorFromThemeId(selectedTheme);
+        const name = (userData.name || '').trim();
+        const key = [photoData.length, photoData.slice(-40), themeColor, name].join('|');
+        if (cache.key === key) return cache.url;
+
+        const img = await loadImageElement(photoData);
+
+        // Slice the 3 shots back out of the strip (12px gaps, same as captureStripIfFaceDetected)
+        const g = 12;
+        const srcCellW = img.naturalWidth - g * 2;
+        const srcCellH = (img.naturalHeight - g * 4) / 3;
+
+        const W = F.side * 2 + F.cellW;
+        const H = F.header + F.cellH * 3 + F.gap * 2 + F.footer;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, shadeHexColor(themeColor, -60));
+        bg.addColorStop(1, themeColor);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // Cream inner panel + dashed border
+        ctx.fillStyle = '#fffdf5';
+        ctx.beginPath();
+        ctx.roundRect(24, 24, W - 48, H - 48, 28);
+        ctx.fill();
+        ctx.strokeStyle = themeColor;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([14, 10]);
+        ctx.beginPath();
+        ctx.roundRect(40, 40, W - 80, H - 80, 20);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        // Header
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = shadeHexColor(themeColor, -50);
+        ctx.font = '900 58px Arial, sans-serif';
+        ctx.fillText('RP ESG', W / 2, 82);
+        ctx.fillStyle = '#52665b';
+        ctx.font = '700 24px Arial, sans-serif';
+        ctx.fillText('MEMORY STRIP', W / 2, 124);
+        drawLeaf(ctx, 110, 90, 60, -0.5, themeColor);
+        drawLeaf(ctx, W - 110, 90, 60, Math.PI + 0.5, themeColor);
+
+        // The 3 photos
+        for (let i = 0; i < 3; i++) {
+            const x = F.side;
+            const y = F.header + i * (F.cellH + F.gap);
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.22)';
+            ctx.shadowBlur = 16;
+            ctx.shadowOffsetY = 6;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(x - 8, y - 8, F.cellW + 16, F.cellH + 16, 18);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, F.cellW, F.cellH, 12);
+            ctx.clip();
+            ctx.drawImage(img, g, g + i * (srcCellH + g), srcCellW, srcCellH, x, y, F.cellW, F.cellH);
+            ctx.restore();
+        }
+
+        // Footer
+        const footerTop = F.header + F.cellH * 3 + F.gap * 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = shadeHexColor(themeColor, -50);
+        ctx.font = '800 36px Arial, sans-serif';
+        ctx.fillText(name || 'RP Visitor', W / 2, footerTop + 52);
+        ctx.fillStyle = '#52665b';
+        ctx.font = '600 22px Arial, sans-serif';
+        const dateText = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' });
+        ctx.fillText('Republic Polytechnic  |  ' + dateText, W / 2, footerTop + 94);
+        for (let i = 0; i < 5; i++) {
+            drawLeaf(ctx, W / 2 - 100 + i * 50, footerTop + 128, 30, (i % 2 ? 0.5 : -0.5), i % 2 ? themeColor : shadeHexColor(themeColor, -30));
+        }
+
+        cache.key = key;
+        cache.url = canvas.toDataURL('image/png');
+        return cache.url;
+    }
+
+    // ---- Style page preview: show the framed strip, hide the landscape overlay ----
+    function resetPreviewFrame(previewPhoto, overlay) {
+        if (overlay) overlay.style.removeProperty('display');
+        const frame = previewPhoto && previewPhoto.closest('.preview-frame');
+        if (frame) { frame.style.removeProperty('width'); frame.style.removeProperty('height'); }
+        if (previewPhoto) previewPhoto.style.removeProperty('object-fit');
+    }
+
+    const updatePreviewWithCutoutBase = updatePreviewWithCutout;
+    updatePreviewWithCutout = function () {
+        const previewPhoto = document.getElementById('preview-photo');
+        const overlay = document.getElementById('selected-overlay');
+
+        if (!previewPhoto || !isStrip()) {
+            resetPreviewFrame(previewPhoto, overlay);
+            return updatePreviewWithCutoutBase.apply(this, arguments);
+        }
+
+        stopBoomerangPreview();
+        if (overlay) overlay.style.setProperty('display', 'none', 'important');
+
+        const frame = previewPhoto.closest('.preview-frame');
+        if (frame) {
+            const w = currentDevice === 'mobile' ? 240 : 280;
+            const h = Math.round(w * (F.header + F.cellH * 3 + F.gap * 2 + F.footer) / (F.side * 2 + F.cellW));
+            frame.style.setProperty('width', w + 'px', 'important');
+            frame.style.setProperty('height', h + 'px', 'important');
+        }
+        previewPhoto.style.setProperty('object-fit', 'contain', 'important');
+
+        buildStripFramedDataUrl()
+            .then((url) => { if (isStrip()) previewPhoto.src = url; })
+            .catch((error) => console.error('Strip frame preview failed:', error));
+    };
+
+    // ---- Final image: framed strip instead of the standard overlay ----
+    const processFinalPhotoFromStillFrameBase = processFinalPhotoFromStillFrame;
+    processFinalPhotoFromStillFrame = function () {
+        if (!isStrip()) return processFinalPhotoFromStillFrameBase.apply(this, arguments);
+
+        return buildStripFramedDataUrl()
+            .then((url) => { userData.processedPhoto = url; })
+            .catch((error) => {
+                console.error('Strip frame failed, using standard frame:', error);
+                return processFinalPhotoFromStillFrameBase.apply(this, arguments);
+            });
+    };
+})();
+
+// ============================================================================
+// FLORAL PHOTOSTRIP FRAME v3
+// - Thinner green frames, soft mint background
+// - ~40% fewer flowers, all stickers kept INSIDE the photo frames
+// - All photos share one colour grade that follows the selected theme
+// - Smaller RP + ESG logos, more space in the footer (slogan / Chinese / name / date)
+// Overrides v2. Normal photos / boomerangs unchanged.
+// ============================================================================
+// ============================================================================
+// FLORAL PHOTOSTRIP FRAME v4  (replaces floralStripFrameV3)
+// - Layout matches the reference: pastel background, rounded photo frames,
+//   corner leaves + sparkles, flower/clover stickers INSIDE the photos,
+//   logo plaque, script slogan, date row and a name pill on soft hills.
+// - ONE colour per theme: every decoration, frame, badge and text colour is
+//   built from a single hue, so pink = all pink, blue = all blue, etc.
+// - Normal photos and boomerangs are untouched.
+// HOW TO USE: delete the whole  floralStripFrameV3  IIFE at the end of
+//             feedback.js and paste this entire block in its place.
+// ============================================================================
+(function floralStripFrameV4() {
+    // ---------------- settings you may want to edit ----------------
+    const RP_LOGO_CANDIDATES = [
+        (document.querySelector('.rp-bear-shirt img') || {}).src,
+        '/assets/static/rpLogo.png',
+        '/assets/rp-logo.png',
+        '/assets/propsforphototaking/rp-logo.png'
+    ].filter(Boolean);
+    const LOGO_HAS_TEXT = false;   // true if your logo PNG already contains "REPUBLIC POLYTECHNIC"
+    const SLOGAN_TEXT = 'the joy of growing green';
+    const SCRIPT_FONT = '"Dancing Script","Brush Script MT","Segoe Script","Snell Roundhand",cursive';
+
+    // Theme -> colour. The theme id AND its display name are searched for these words.
+    // [regex, hue (0-360), saturation (0-100)]. Add your own overlay names here.
+    const THEME_COLOURS = [
+        [/\b(pink|rose|sakura|blossom|bubblegum)/, 338, 55],
+        [/\b(red|ruby|crimson|maroon)\b/, 355, 50],
+        [/\b(orange|sunset|peach|autumn|coral)/, 24, 60],
+        [/\b(yellow|gold|sunny|sunshine|lemon)/, 45, 60],
+        [/\b(green|nature|forest|leaf|eco|mint|garden)/, 135, 32],
+        [/\b(teal|aqua|turquoise|cyan)/, 175, 40],
+        [/\b(blue|ocean|sea|sky|water|marine)/, 208, 48],
+        [/\b(purple|violet|lavender|lilac|grape)/, 268, 40],
+        [/\b(brown|earth|coffee|vintage|retro|sepia)/, 28, 30],
+        [/\b(grey|gray|silver|mono|steel)/, 210, 8]
+    ];
+
+    // ---------------- layout ----------------
+    const L = { W: 720, sideX: 88, cellW: 544, cellH: 408, gap: 36, top: 60, footer: 520, pad: 6, radius: 34 };
+    const cache = { key: '', url: '', w: 0, h: 0 };
+    let logoImg;      // undefined = not tried yet, null = none found
+    let P = null;     // current palette
+
+    function isStrip() { return Boolean(photoData) && shouldContainPhoto(photoData); }
+    function frameHeight(n) { return L.top + n * L.cellH + (n - 1) * L.gap + L.footer; }
+
+    async function getLogo() {
+        if (logoImg !== undefined) return logoImg;
+        for (const src of RP_LOGO_CANDIDATES) {
+            try { logoImg = await loadImageElement(src); return logoImg; } catch (e) { /* try next */ }
+        }
+        logoImg = null;
+        return null;
+    }
+
+    // ---------------- colour: ONE hue per theme ----------------
+    const hsl = (h, s, l, a) => (a == null ? `hsl(${h},${s}%,${l}%)` : `hsla(${h},${s}%,${l}%,${a})`);
+
+    function hueFromHex(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+        let h = 0;
+        if (d) {
+            if (max === r) h = ((g - b) / d) % 6;
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+        }
+        return Math.round((h * 60 + 360) % 360);
+    }
+
+    function resolveThemeColour() {
+        const name = ((overlayData[selectedTheme] || {}).display_name || '');
+        const key = (selectedTheme + ' ' + name).toLowerCase();
+        for (const [re, h, s] of THEME_COLOURS) if (re.test(key)) return { h, s };
+        return { h: hueFromHex(generateColorFromThemeId(selectedTheme)), s: 45 };   // unknown theme: same colour as its swatch
+    }
+
+    function buildPalette() {
+        const { h, s } = resolveThemeColour();
+        const S = (d) => Math.max(0, Math.min(90, s + d));
+        return {
+            h,
+            bgTop: hsl(h, S(15), 97), bgBottom: hsl(h, S(5), 91),
+            blob: hsl(h, S(0), 86, 0.5),
+            hill1: hsl(h, S(-5), 89), hill2: hsl(h, S(-8), 83), hill3: hsl(h, S(-10), 77),
+            frame: hsl(h, S(-5), 34), frameDark: hsl(h, S(0), 24), frameGlow: hsl(h, S(10), 80),
+            shadow: hsl(h, S(0), 22, 0.32),
+            leaf: hsl(h, S(-5), 83, 0.92), leafEdge: hsl(h, S(-5), 66), stem: hsl(h, S(-5), 64),
+            stickerFill: hsl(h, S(-5), 78), stickerEdge: hsl(h, S(-5), 52), stickerVein: hsl(h, S(-5), 93),
+            sparkle: hsl(h, S(-5), 68),
+            plaque: hsl(h, S(15), 98),
+            badgeTop: hsl(h, S(-5), 44), badgeBottom: hsl(h, S(-5), 31),
+            dark: hsl(h, S(0), 20), muted: hsl(h, S(-15), 38),
+            pill: hsl(h, S(-12), 58), light: hsl(h, S(20), 95)
+        };
+    }
+
+    // ---------------- drawing helpers (all colours come from P) ----------------
+    function sparkle(ctx, x, y, r, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.quadraticCurveTo(x, y, x, y + r);
+        ctx.quadraticCurveTo(x, y, x - r, y);
+        ctx.quadraticCurveTo(x, y, x, y - r);
+        ctx.fill();
+    }
+
+    function leaf(ctx, x, y, len, rot, fill, stroke) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len * 0.5, -len * 0.34, len, 0);
+        ctx.quadraticCurveTo(len * 0.5, len * 0.34, 0, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(len * 0.06, 0);
+        ctx.lineTo(len * 0.86, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function branch(ctx, x, y, len, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.strokeStyle = P.stem;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len * 0.5, -len * 0.06, len, 0);
+        ctx.stroke();
+        for (let i = 1; i <= 5; i++) {
+            const t = i / 6, px = len * t, sz = len * 0.27 * (1 - t * 0.35);
+            leaf(ctx, px, 0, sz, -0.75, P.leaf, P.leafEdge);
+            leaf(ctx, px, 0, sz, 0.75, P.leaf, P.leafEdge);
+        }
+        leaf(ctx, len, 0, len * 0.2, 0, P.leaf, P.leafEdge);
+        ctx.restore();
+    }
+
+    function bigLeaves(ctx, x, y, size, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        leaf(ctx, 0, 0, size, -0.55, P.leaf, P.leafEdge);
+        leaf(ctx, 0, 0, size * 0.92, 0.1, P.leaf, P.leafEdge);
+        leaf(ctx, 0, 0, size * 0.8, 0.75, P.leaf, P.leafEdge);
+        ctx.restore();
+    }
+
+    function heartLobe(ctx, s) {
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.08);
+        ctx.bezierCurveTo(-s * 0.55, -s * 0.05, -s * 0.6, -s * 0.85, -s * 0.2, -s * 0.82);
+        ctx.bezierCurveTo(-s * 0.08, -s * 0.8, 0, -s * 0.7, 0, -s * 0.62);
+        ctx.bezierCurveTo(0, -s * 0.7, s * 0.08, -s * 0.8, s * 0.2, -s * 0.82);
+        ctx.bezierCurveTo(s * 0.6, -s * 0.85, s * 0.55, -s * 0.05, 0, -s * 0.08);
+        ctx.closePath();
+    }
+
+    // sticker-style clover: white outline, single-colour fill
+    function clover(ctx, x, y, size) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.lineJoin = 'round';
+        for (let pass = 0; pass < 2; pass++) {
+            for (let i = 0; i < 4; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI / 2) * i + Math.PI / 4);
+                heartLobe(ctx, size);
+                if (pass === 0) {
+                    ctx.lineWidth = size * 0.16;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.stroke(); ctx.fill();
+                } else {
+                    ctx.fillStyle = P.stickerFill;
+                    ctx.strokeStyle = P.stickerEdge;
+                    ctx.lineWidth = 2;
+                    ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = P.stickerVein;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath(); ctx.moveTo(0, -size * 0.14); ctx.lineTo(0, -size * 0.6); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.restore();
+    }
+
+    function stickerFlower(ctx, x, y, size) {
+        ctx.save();
+        ctx.translate(x, y);
+        for (let pass = 0; pass < 2; pass++) {
+            for (let i = 0; i < 5; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI * 2 * i) / 5);
+                ctx.beginPath();
+                ctx.ellipse(0, -size * 0.5, size * 0.3, size * 0.46, 0, 0, Math.PI * 2);
+                if (pass === 0) {
+                    ctx.lineWidth = size * 0.16;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.stroke(); ctx.fill();
+                } else {
+                    ctx.fillStyle = P.stickerFill;
+                    ctx.strokeStyle = P.stickerEdge;
+                    ctx.lineWidth = 2;
+                    ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, 0, size * 0.27, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = P.light;
+        ctx.strokeStyle = P.stickerEdge;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, size * 0.18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    function tinyFlower(ctx, x, y, s) {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = P.stickerEdge;
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 5; i++) {
+            const a = (Math.PI * 2 * i) / 5;
+            ctx.beginPath();
+            ctx.arc(x + Math.cos(a) * s * 0.55, y + Math.sin(a) * s * 0.55, s * 0.45, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+        }
+        ctx.fillStyle = P.stickerFill;
+        ctx.beginPath(); ctx.arc(x, y, s * 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // three little "pop" lines next to a sticker
+    function burst(ctx, x, y, size, startAngle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = P.frame;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 3; i++) {
+            const a = startAngle + (i - 1) * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * size * 0.7, Math.sin(a) * size * 0.7);
+            ctx.lineTo(Math.cos(a) * size * 1.1, Math.sin(a) * size * 1.1);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function hillLayer(ctx, W, H, y, amp, color, shift) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        ctx.lineTo(0, y + shift);
+        ctx.bezierCurveTo(W * 0.25, y - amp, W * 0.4, y + amp, W * 0.62, y - amp * 0.3);
+        ctx.bezierCurveTo(W * 0.8, y - amp * 1.2, W * 0.92, y + amp * 0.4, W, y - amp * 0.5);
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function shieldFallback(ctx, cx, top) {
+        ctx.save();
+        ctx.translate(cx, top);
+        ctx.fillStyle = P.badgeBottom;
+        ctx.beginPath();
+        ctx.moveTo(-24, 0); ctx.lineTo(24, 0); ctx.lineTo(24, 30);
+        ctx.quadraticCurveTo(24, 48, 0, 58);
+        ctx.quadraticCurveTo(-24, 48, -24, 30);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = P.badgeTop;
+        ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(-4, 0); ctx.lineTo(-24, 34); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
+    // ---------------- the frame ----------------
+    async function buildFloralStrip() {
+        P = buildPalette();
+        const name = (userData.name || '').trim();
+        const logo = await getLogo();
+        const img = await loadImageElement(photoData);
+        const key = [photoData.length, photoData.slice(-40), name, logo ? 'L' : 'N', selectedTheme, P.h, P.bgTop].join('|');
+        if (cache.key === key) return cache;
+
+        // read the shots back out of the strip (4:3 cells, 12px gaps)
+        const g = 12;
+        const srcCellW = img.naturalWidth - g * 2;
+        const srcCellH = srcCellW * 3 / 4;
+        const n = Math.max(1, Math.round((img.naturalHeight - g) / (srcCellH + g)));
+        const realCellH = (img.naturalHeight - g * (n + 1)) / n;
+
+        const W = L.W, H = frameHeight(n);
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        const cellX = L.sideX;
+        const cellY = (i) => L.top + i * (L.cellH + L.gap);
+        const E = L.top + n * L.cellH + (n - 1) * L.gap;       // bottom edge of the last photo
+
+        // ----- background -----
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, P.bgTop);
+        bg.addColorStop(1, P.bgBottom);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // soft blob on the right side + hills at the bottom
+        ctx.fillStyle = P.blob;
+        ctx.beginPath();
+        ctx.moveTo(W, E - L.cellH * 0.9);
+        ctx.bezierCurveTo(W * 0.82, E - L.cellH * 0.75, W * 0.9, E - L.cellH * 0.2, W * 0.78, E + 40);
+        ctx.lineTo(W, E + 40);
+        ctx.closePath();
+        ctx.fill();
+        hillLayer(ctx, W, H, H - 210, 34, P.hill1, 0);
+        hillLayer(ctx, W, H, H - 150, 28, P.hill2, 16);
+        hillLayer(ctx, W, H, H - 90, 22, P.hill3, 10);
+
+        // ----- background decorations (behind the photos) -----
+        clover(ctx, 74, 44, 30);
+        sparkle(ctx, 150, 46, 13, P.sparkle);
+        sparkle(ctx, 40, 106, 11, P.sparkle);
+        branch(ctx, W + 6, 74, 96, Math.PI * 0.88);
+        sparkle(ctx, W - 44, 228, 12, P.sparkle);
+        bigLeaves(ctx, -6, L.top + L.cellH + 10, 92, -0.95);
+        sparkle(ctx, 42, L.top + L.cellH + 70, 12, P.sparkle);
+        sparkle(ctx, 42, cellY(1) + L.cellH * 0.45, 11, P.sparkle);
+        sparkle(ctx, W - 46, cellY(1) + 40, 12, P.sparkle);
+        sparkle(ctx, W - 42, cellY(1) + 90, 9, P.sparkle);
+        if (n >= 3) {
+            bigLeaves(ctx, -8, cellY(2) + L.cellH * 0.8, 104, -0.7);
+            sparkle(ctx, 42, cellY(2) + L.cellH * 0.35, 11, P.sparkle);
+            branch(ctx, W - 28, E + 6, 150, -Math.PI * 0.55);
+            sparkle(ctx, W - 44, E + 70, 12, P.sparkle);
+        }
+
+        // ----- photo cells: dark frame, soft glow, light tint of the theme -----
+        for (let i = 0; i < n; i++) {
+            const x = cellX, y = cellY(i);
+            ctx.save();
+            ctx.shadowColor = P.shadow;
+            ctx.shadowBlur = 18;
+            ctx.shadowOffsetY = 7;
+            ctx.fillStyle = P.frame;
+            ctx.beginPath();
+            ctx.roundRect(x - L.pad, y - L.pad, L.cellW + L.pad * 2, L.cellH + L.pad * 2, L.radius + L.pad);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, L.cellW, L.cellH, L.radius);
+            ctx.clip();
+            if (CANVAS_FILTER_OK) ctx.filter = 'saturate(1.06) contrast(1.03) brightness(1.03)';
+            ctx.drawImage(img, g, g + i * (realCellH + g), srcCellW, realCellH, x, y, L.cellW, L.cellH);
+            ctx.filter = 'none';
+            ctx.globalAlpha = 0.06;
+            ctx.fillStyle = P.badgeTop;
+            ctx.fillRect(x, y, L.cellW, L.cellH);
+            ctx.restore();
+
+            // thin inner glow ring
+            ctx.save();
+            ctx.strokeStyle = P.frameGlow;
+            ctx.globalAlpha = 0.7;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(x + 1.5, y + 1.5, L.cellW - 3, L.cellH - 3, L.radius - 1);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // ----- stickers INSIDE the photos (clipped to each frame) -----
+        const inCell = (i, fn) => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(cellX, cellY(i), L.cellW, L.cellH, L.radius);
+            ctx.clip();
+            fn(cellX, cellY(i));
+            ctx.restore();
+        };
+        for (let i = 0; i < n; i++) {
+            const pattern = i % 3;
+            inCell(i, (x, y) => {
+                if (pattern === 0) {
+                    clover(ctx, x + L.cellW - 50, y + 52, 34);
+                    burst(ctx, x + L.cellW - 50, y + 52, 34, Math.PI * 0.5);
+                } else if (pattern === 1) {
+                    stickerFlower(ctx, x + 52, y + L.cellH - 50, 34);
+                    burst(ctx, x + 52, y + L.cellH - 50, 34, -Math.PI * 0.5);
+                } else {
+                    clover(ctx, x + L.cellW - 50, y + 52, 34);
+                    burst(ctx, x + L.cellW - 50, y + 52, 34, Math.PI * 0.5);
+                    tinyFlower(ctx, x + 38, y + L.cellH - 36, 13);
+                    tinyFlower(ctx, x + 72, y + L.cellH - 58, 11);
+                }
+            });
+        }
+
+        // ----- bottom branches over the hills -----
+        branch(ctx, 24, H - 6, 128, -Math.PI * 0.42);
+        branch(ctx, W - 36, H - 6, 150, -Math.PI * 0.6);
+        tinyFlower(ctx, W - 40, H - 34, 14);
+        sparkle(ctx, 120, H - 110, 12, P.sparkle);
+        sparkle(ctx, 90, E + 150, 11, P.sparkle);
+
+        // ----- logo plaque -----
+        const plaqueW = L.cellW, plaqueH = 128;
+        const px = cellX, py = E + 62;
+        ctx.save();
+        ctx.shadowColor = P.shadow;
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 5;
+        ctx.fillStyle = P.plaque;
+        ctx.beginPath(); ctx.roundRect(px, py, plaqueW, plaqueH, 40); ctx.fill();
+        ctx.restore();
+
+        const midY = py + plaqueH / 2;
+        const leftCx = px + plaqueW * 0.27;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (logo) {
+            const maxH = LOGO_HAS_TEXT ? 100 : 56;
+            const s = Math.min(130 / logo.naturalWidth, maxH / logo.naturalHeight);
+            const lw = logo.naturalWidth * s, lh = logo.naturalHeight * s;
+            ctx.drawImage(logo, leftCx - lw / 2, LOGO_HAS_TEXT ? midY - lh / 2 : py + 14, lw, lh);
+        } else if (!LOGO_HAS_TEXT) {
+            shieldFallback(ctx, leftCx, py + 12);
+        }
+        if (!LOGO_HAS_TEXT) {
+            ctx.fillStyle = P.dark;
+            ctx.font = '900 22px Arial, sans-serif';
+            ctx.fillText('REPUBLIC', leftCx, py + 86);
+            ctx.font = '800 18px Arial, sans-serif';
+            ctx.fillText('POLYTECHNIC', leftCx, py + 108);
+        }
+
+        // divider
+        ctx.strokeStyle = P.stem;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(px + plaqueW * 0.5, py + 22); ctx.lineTo(px + plaqueW * 0.5, py + plaqueH - 22); ctx.stroke();
+
+        // ESG badge
+        const esgCx = px + plaqueW * 0.75;
+        const bw = 190, bh = 92;
+        const eg = ctx.createLinearGradient(0, midY - bh / 2, 0, midY + bh / 2);
+        eg.addColorStop(0, P.badgeTop);
+        eg.addColorStop(1, P.badgeBottom);
+        ctx.fillStyle = eg;
+        ctx.beginPath(); ctx.roundRect(esgCx - bw / 2, midY - bh / 2, bw, bh, 26); ctx.fill();
+        leaf(ctx, esgCx - 78, midY - 14, 26, -0.9, P.light, P.light);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 44px Arial, sans-serif';
+        ctx.fillText('ESG', esgCx + 12, midY - 16);
+        ctx.font = '600 14px Arial, sans-serif';
+        ctx.fillText('Environmental,', esgCx, midY + 16);
+        ctx.fillText('Social & Governance', esgCx, midY + 33);
+
+        // ----- slogan with side lines -----
+        const sloganY = py + plaqueH + 76;
+        ctx.font = `italic 400 46px ${SCRIPT_FONT}`;
+        ctx.fillStyle = P.frameDark;
+        ctx.fillText(SLOGAN_TEXT, W / 2, sloganY);
+        const sw = ctx.measureText(SLOGAN_TEXT).width;
+        ctx.strokeStyle = P.frame;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px + 6, sloganY + 4); ctx.lineTo(W / 2 - sw / 2 - 18, sloganY + 4);
+        ctx.moveTo(W / 2 + sw / 2 + 18, sloganY + 4); ctx.lineTo(px + plaqueW - 6, sloganY + 4);
+        ctx.stroke();
+        sparkle(ctx, px - 6, sloganY + 6, 10, P.sparkle);
+
+        // ----- date row with leaf icons -----
+        const dateY = sloganY + 84;
+        const dateText = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' }) + '  ·  RP ESG';
+        ctx.font = '600 30px Arial, sans-serif';
+        ctx.fillStyle = P.dark;
+        ctx.fillText(dateText, W / 2, dateY);
+        const dw = ctx.measureText(dateText).width;
+        leaf(ctx, W / 2 - dw / 2 - 58, dateY + 6, 30, -0.6, P.stickerFill, P.stickerEdge);
+        leaf(ctx, W / 2 + dw / 2 + 28, dateY - 6, 30, Math.PI + 0.6, P.stickerFill, P.stickerEdge);
+
+        // ----- name pill with side lines -----
+        const pillY = dateY + 66;
+        const label = name || 'Visitor';
+        ctx.font = '600 24px Arial, sans-serif';
+        const pw = Math.min(plaqueW - 120, Math.max(150, ctx.measureText(label).width + 56)), ph = 46;
+        ctx.strokeStyle = P.frame;
+        ctx.globalAlpha = 0.7;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - pw / 2 - 120, pillY); ctx.lineTo(W / 2 - pw / 2 - 16, pillY);
+        ctx.moveTo(W / 2 + pw / 2 + 16, pillY); ctx.lineTo(W / 2 + pw / 2 + 120, pillY);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = P.pill;
+        ctx.beginPath(); ctx.roundRect(W / 2 - pw / 2, pillY - ph / 2, pw, ph, ph / 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(label, W / 2, pillY + 1);
+
+        cache.key = key;
+        cache.url = canvas.toDataURL('image/png');
+        cache.w = W;
+        cache.h = H;
+        return cache;
+    }
+
+    // ---- Style page preview (redraws every time a theme is tapped) ----
+    function resetPreviewFrame(previewPhoto, overlay) {
+        if (overlay) overlay.style.removeProperty('display');
+        const frame = previewPhoto && previewPhoto.closest('.preview-frame');
+        if (frame) { frame.style.removeProperty('width'); frame.style.removeProperty('height'); }
+        if (previewPhoto) previewPhoto.style.removeProperty('object-fit');
+    }
+
+    const updatePreviewBeforeV4 = updatePreviewWithCutout;
+    updatePreviewWithCutout = function () {
+        const previewPhoto = document.getElementById('preview-photo');
+        const overlay = document.getElementById('selected-overlay');
+
+        if (!previewPhoto || !isStrip()) {
+            resetPreviewFrame(previewPhoto, overlay);
+            return updatePreviewBeforeV4.apply(this, arguments);
+        }
+
+        stopBoomerangPreview();
+        if (overlay) overlay.style.setProperty('display', 'none', 'important');
+        previewPhoto.style.setProperty('object-fit', 'contain', 'important');
+
+        buildFloralStrip()
+            .then((result) => {
+                if (!isStrip()) return;
+                const frame = previewPhoto.closest('.preview-frame');
+                if (frame) {
+                    const w = currentDevice === 'mobile' ? 240 : 300;
+                    frame.style.setProperty('width', w + 'px', 'important');
+                    frame.style.setProperty('height', Math.round(w * result.h / result.w) + 'px', 'important');
+                }
+                previewPhoto.src = result.url;
+            })
+            .catch((error) => console.error('Floral strip preview failed:', error));
+    };
+
+    // ---- Saved / emailed image ----
+    const processStillBeforeV4 = processFinalPhotoFromStillFrame;
+    processFinalPhotoFromStillFrame = function () {
+        if (!isStrip()) return processStillBeforeV4.apply(this, arguments);
+        return buildFloralStrip()
+            .then((result) => { userData.processedPhoto = result.url; })
+            .catch((error) => {
+                console.error('Floral strip failed, using previous frame:', error);
+                return processStillBeforeV4.apply(this, arguments);
+            });
+    };
+})();
