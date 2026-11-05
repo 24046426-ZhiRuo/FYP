@@ -9308,3 +9308,759 @@ function resetInactivityTimer() {
         syncMirrorState();
     };
 })();
+
+// ============================================================================
+// CUSTOM PHOTO STRIP FRAME
+// Strips get their own portrait frame instead of the standard landscape overlay.
+// Normal photos and boomerangs are untouched.
+// ============================================================================
+(function customStripFrame() {
+    const F = { cellW: 600, cellH: 450, gap: 20, side: 60, header: 150, footer: 160 };
+    const cache = { key: '', url: '' };
+
+    function isStrip() { return Boolean(photoData) && shouldContainPhoto(photoData); }
+
+    function drawLeaf(ctx, x, y, size, rot, color) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.ellipse(0, 0, size * 0.55, size * 0.25, 0, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(255,255,255,0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(-size * 0.5, 0);
+        ctx.lineTo(size * 0.5, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    async function buildStripFramedDataUrl() {
+        const themeColor = generateColorFromThemeId(selectedTheme);
+        const name = (userData.name || '').trim();
+        const key = [photoData.length, photoData.slice(-40), themeColor, name].join('|');
+        if (cache.key === key) return cache.url;
+
+        const img = await loadImageElement(photoData);
+
+        // Slice the 3 shots back out of the strip (12px gaps, same as captureStripIfFaceDetected)
+        const g = 12;
+        const srcCellW = img.naturalWidth - g * 2;
+        const srcCellH = (img.naturalHeight - g * 4) / 3;
+
+        const W = F.side * 2 + F.cellW;
+        const H = F.header + F.cellH * 3 + F.gap * 2 + F.footer;
+        const canvas = document.createElement('canvas');
+        canvas.width = W;
+        canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        // Background
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, shadeHexColor(themeColor, -60));
+        bg.addColorStop(1, themeColor);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // Cream inner panel + dashed border
+        ctx.fillStyle = '#fffdf5';
+        ctx.beginPath();
+        ctx.roundRect(24, 24, W - 48, H - 48, 28);
+        ctx.fill();
+        ctx.strokeStyle = themeColor;
+        ctx.globalAlpha = 0.45;
+        ctx.lineWidth = 3;
+        ctx.setLineDash([14, 10]);
+        ctx.beginPath();
+        ctx.roundRect(40, 40, W - 80, H - 80, 20);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.globalAlpha = 1;
+
+        // Header
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = shadeHexColor(themeColor, -50);
+        ctx.font = '900 58px Arial, sans-serif';
+        ctx.fillText('RP ESG', W / 2, 82);
+        ctx.fillStyle = '#52665b';
+        ctx.font = '700 24px Arial, sans-serif';
+        ctx.fillText('MEMORY STRIP', W / 2, 124);
+        drawLeaf(ctx, 110, 90, 60, -0.5, themeColor);
+        drawLeaf(ctx, W - 110, 90, 60, Math.PI + 0.5, themeColor);
+
+        // The 3 photos
+        for (let i = 0; i < 3; i++) {
+            const x = F.side;
+            const y = F.header + i * (F.cellH + F.gap);
+            ctx.save();
+            ctx.shadowColor = 'rgba(0,0,0,0.22)';
+            ctx.shadowBlur = 16;
+            ctx.shadowOffsetY = 6;
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(x - 8, y - 8, F.cellW + 16, F.cellH + 16, 18);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, F.cellW, F.cellH, 12);
+            ctx.clip();
+            ctx.drawImage(img, g, g + i * (srcCellH + g), srcCellW, srcCellH, x, y, F.cellW, F.cellH);
+            ctx.restore();
+        }
+
+        // Footer
+        const footerTop = F.header + F.cellH * 3 + F.gap * 2;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = shadeHexColor(themeColor, -50);
+        ctx.font = '800 36px Arial, sans-serif';
+        ctx.fillText(name || 'RP Visitor', W / 2, footerTop + 52);
+        ctx.fillStyle = '#52665b';
+        ctx.font = '600 22px Arial, sans-serif';
+        const dateText = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' });
+        ctx.fillText('Republic Polytechnic  |  ' + dateText, W / 2, footerTop + 94);
+        for (let i = 0; i < 5; i++) {
+            drawLeaf(ctx, W / 2 - 100 + i * 50, footerTop + 128, 30, (i % 2 ? 0.5 : -0.5), i % 2 ? themeColor : shadeHexColor(themeColor, -30));
+        }
+
+        cache.key = key;
+        cache.url = canvas.toDataURL('image/png');
+        return cache.url;
+    }
+
+    // ---- Style page preview: show the framed strip, hide the landscape overlay ----
+    function resetPreviewFrame(previewPhoto, overlay) {
+        if (overlay) overlay.style.removeProperty('display');
+        const frame = previewPhoto && previewPhoto.closest('.preview-frame');
+        if (frame) { frame.style.removeProperty('width'); frame.style.removeProperty('height'); }
+        if (previewPhoto) previewPhoto.style.removeProperty('object-fit');
+    }
+
+    const updatePreviewWithCutoutBase = updatePreviewWithCutout;
+    updatePreviewWithCutout = function () {
+        const previewPhoto = document.getElementById('preview-photo');
+        const overlay = document.getElementById('selected-overlay');
+
+        if (!previewPhoto || !isStrip()) {
+            resetPreviewFrame(previewPhoto, overlay);
+            return updatePreviewWithCutoutBase.apply(this, arguments);
+        }
+
+        stopBoomerangPreview();
+        if (overlay) overlay.style.setProperty('display', 'none', 'important');
+
+        const frame = previewPhoto.closest('.preview-frame');
+        if (frame) {
+            const w = currentDevice === 'mobile' ? 240 : 280;
+            const h = Math.round(w * (F.header + F.cellH * 3 + F.gap * 2 + F.footer) / (F.side * 2 + F.cellW));
+            frame.style.setProperty('width', w + 'px', 'important');
+            frame.style.setProperty('height', h + 'px', 'important');
+        }
+        previewPhoto.style.setProperty('object-fit', 'contain', 'important');
+
+        buildStripFramedDataUrl()
+            .then((url) => { if (isStrip()) previewPhoto.src = url; })
+            .catch((error) => console.error('Strip frame preview failed:', error));
+    };
+
+    // ---- Final image: framed strip instead of the standard overlay ----
+    const processFinalPhotoFromStillFrameBase = processFinalPhotoFromStillFrame;
+    processFinalPhotoFromStillFrame = function () {
+        if (!isStrip()) return processFinalPhotoFromStillFrameBase.apply(this, arguments);
+
+        return buildStripFramedDataUrl()
+            .then((url) => { userData.processedPhoto = url; })
+            .catch((error) => {
+                console.error('Strip frame failed, using standard frame:', error);
+                return processFinalPhotoFromStillFrameBase.apply(this, arguments);
+            });
+    };
+})();
+
+// ============================================================================
+// FLORAL PHOTOSTRIP FRAME v3
+// - Thinner green frames, soft mint background
+// - ~40% fewer flowers, all stickers kept INSIDE the photo frames
+// - All photos share one colour grade that follows the selected theme
+// - Smaller RP + ESG logos, more space in the footer (slogan / Chinese / name / date)
+// Overrides v2. Normal photos / boomerangs unchanged.
+// ============================================================================
+// ============================================================================
+// FLORAL PHOTOSTRIP FRAME v4  (replaces floralStripFrameV3)
+// - Layout matches the reference: pastel background, rounded photo frames,
+//   corner leaves + sparkles, flower/clover stickers INSIDE the photos,
+//   logo plaque, script slogan, date row and a name pill on soft hills.
+// - ONE colour per theme: every decoration, frame, badge and text colour is
+//   built from a single hue, so pink = all pink, blue = all blue, etc.
+// - Normal photos and boomerangs are untouched.
+// HOW TO USE: delete the whole  floralStripFrameV3  IIFE at the end of
+//             feedback.js and paste this entire block in its place.
+// ============================================================================
+(function floralStripFrameV4() {
+    // ---------------- settings you may want to edit ----------------
+    const RP_LOGO_CANDIDATES = [
+        (document.querySelector('.rp-bear-shirt img') || {}).src,
+        '/assets/static/rpLogo.png',
+        '/assets/rp-logo.png',
+        '/assets/propsforphototaking/rp-logo.png'
+    ].filter(Boolean);
+    const LOGO_HAS_TEXT = false;   // true if your logo PNG already contains "REPUBLIC POLYTECHNIC"
+    const SLOGAN_TEXT = 'the joy of growing green';
+    const SCRIPT_FONT = '"Dancing Script","Brush Script MT","Segoe Script","Snell Roundhand",cursive';
+
+    // Theme -> colour. The theme id AND its display name are searched for these words.
+    // [regex, hue (0-360), saturation (0-100)]. Add your own overlay names here.
+    const THEME_COLOURS = [
+        [/\b(pink|rose|sakura|blossom|bubblegum)/, 338, 55],
+        [/\b(red|ruby|crimson|maroon)\b/, 355, 50],
+        [/\b(orange|sunset|peach|autumn|coral)/, 24, 60],
+        [/\b(yellow|gold|sunny|sunshine|lemon)/, 45, 60],
+        [/\b(green|nature|forest|leaf|eco|mint|garden)/, 135, 32],
+        [/\b(teal|aqua|turquoise|cyan)/, 175, 40],
+        [/\b(blue|ocean|sea|sky|water|marine)/, 208, 48],
+        [/\b(purple|violet|lavender|lilac|grape)/, 268, 40],
+        [/\b(brown|earth|coffee|vintage|retro|sepia)/, 28, 30],
+        [/\b(grey|gray|silver|mono|steel)/, 210, 8]
+    ];
+
+    // ---------------- layout ----------------
+    const L = { W: 720, sideX: 88, cellW: 544, cellH: 408, gap: 36, top: 60, footer: 520, pad: 6, radius: 34 };
+    const cache = { key: '', url: '', w: 0, h: 0 };
+    let logoImg;      // undefined = not tried yet, null = none found
+    let P = null;     // current palette
+
+    function isStrip() { return Boolean(photoData) && shouldContainPhoto(photoData); }
+    function frameHeight(n) { return L.top + n * L.cellH + (n - 1) * L.gap + L.footer; }
+
+    async function getLogo() {
+        if (logoImg !== undefined) return logoImg;
+        for (const src of RP_LOGO_CANDIDATES) {
+            try { logoImg = await loadImageElement(src); return logoImg; } catch (e) { /* try next */ }
+        }
+        logoImg = null;
+        return null;
+    }
+
+    // ---------------- colour: ONE hue per theme ----------------
+    const hsl = (h, s, l, a) => (a == null ? `hsl(${h},${s}%,${l}%)` : `hsla(${h},${s}%,${l}%,${a})`);
+
+    function hueFromHex(hex) {
+        const n = parseInt(hex.slice(1), 16);
+        const r = ((n >> 16) & 255) / 255, g = ((n >> 8) & 255) / 255, b = (n & 255) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b), d = max - min;
+        let h = 0;
+        if (d) {
+            if (max === r) h = ((g - b) / d) % 6;
+            else if (max === g) h = (b - r) / d + 2;
+            else h = (r - g) / d + 4;
+        }
+        return Math.round((h * 60 + 360) % 360);
+    }
+
+    function resolveThemeColour() {
+        const name = ((overlayData[selectedTheme] || {}).display_name || '');
+        const key = (selectedTheme + ' ' + name).toLowerCase();
+        for (const [re, h, s] of THEME_COLOURS) if (re.test(key)) return { h, s };
+        return { h: hueFromHex(generateColorFromThemeId(selectedTheme)), s: 45 };   // unknown theme: same colour as its swatch
+    }
+
+    function buildPalette() {
+        const { h, s } = resolveThemeColour();
+        const S = (d) => Math.max(0, Math.min(90, s + d));
+        return {
+            h,
+            bgTop: hsl(h, S(15), 97), bgBottom: hsl(h, S(5), 91),
+            blob: hsl(h, S(0), 86, 0.5),
+            hill1: hsl(h, S(-5), 89), hill2: hsl(h, S(-8), 83), hill3: hsl(h, S(-10), 77),
+            frame: hsl(h, S(-5), 34), frameDark: hsl(h, S(0), 24), frameGlow: hsl(h, S(10), 80),
+            shadow: hsl(h, S(0), 22, 0.32),
+            leaf: hsl(h, S(-5), 83, 0.92), leafEdge: hsl(h, S(-5), 66), stem: hsl(h, S(-5), 64),
+            stickerFill: hsl(h, S(-5), 78), stickerEdge: hsl(h, S(-5), 52), stickerVein: hsl(h, S(-5), 93),
+            sparkle: hsl(h, S(-5), 68),
+            plaque: hsl(h, S(15), 98),
+            badgeTop: hsl(h, S(-5), 44), badgeBottom: hsl(h, S(-5), 31),
+            dark: hsl(h, S(0), 20), muted: hsl(h, S(-15), 38),
+            pill: hsl(h, S(-12), 58), light: hsl(h, S(20), 95)
+        };
+    }
+
+    // ---------------- drawing helpers (all colours come from P) ----------------
+    function sparkle(ctx, x, y, r, color) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(x, y - r);
+        ctx.quadraticCurveTo(x, y, x + r, y);
+        ctx.quadraticCurveTo(x, y, x, y + r);
+        ctx.quadraticCurveTo(x, y, x - r, y);
+        ctx.quadraticCurveTo(x, y, x, y - r);
+        ctx.fill();
+    }
+
+    function leaf(ctx, x, y, len, rot, fill, stroke) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len * 0.5, -len * 0.34, len, 0);
+        ctx.quadraticCurveTo(len * 0.5, len * 0.34, 0, 0);
+        ctx.fill();
+        ctx.stroke();
+        ctx.globalAlpha = 0.6;
+        ctx.beginPath();
+        ctx.moveTo(len * 0.06, 0);
+        ctx.lineTo(len * 0.86, 0);
+        ctx.stroke();
+        ctx.restore();
+    }
+
+    function branch(ctx, x, y, len, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        ctx.strokeStyle = P.stem;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.quadraticCurveTo(len * 0.5, -len * 0.06, len, 0);
+        ctx.stroke();
+        for (let i = 1; i <= 5; i++) {
+            const t = i / 6, px = len * t, sz = len * 0.27 * (1 - t * 0.35);
+            leaf(ctx, px, 0, sz, -0.75, P.leaf, P.leafEdge);
+            leaf(ctx, px, 0, sz, 0.75, P.leaf, P.leafEdge);
+        }
+        leaf(ctx, len, 0, len * 0.2, 0, P.leaf, P.leafEdge);
+        ctx.restore();
+    }
+
+    function bigLeaves(ctx, x, y, size, rot) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(rot);
+        leaf(ctx, 0, 0, size, -0.55, P.leaf, P.leafEdge);
+        leaf(ctx, 0, 0, size * 0.92, 0.1, P.leaf, P.leafEdge);
+        leaf(ctx, 0, 0, size * 0.8, 0.75, P.leaf, P.leafEdge);
+        ctx.restore();
+    }
+
+    function heartLobe(ctx, s) {
+        ctx.beginPath();
+        ctx.moveTo(0, -s * 0.08);
+        ctx.bezierCurveTo(-s * 0.55, -s * 0.05, -s * 0.6, -s * 0.85, -s * 0.2, -s * 0.82);
+        ctx.bezierCurveTo(-s * 0.08, -s * 0.8, 0, -s * 0.7, 0, -s * 0.62);
+        ctx.bezierCurveTo(0, -s * 0.7, s * 0.08, -s * 0.8, s * 0.2, -s * 0.82);
+        ctx.bezierCurveTo(s * 0.6, -s * 0.85, s * 0.55, -s * 0.05, 0, -s * 0.08);
+        ctx.closePath();
+    }
+
+    // sticker-style clover: white outline, single-colour fill
+    function clover(ctx, x, y, size) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.lineJoin = 'round';
+        for (let pass = 0; pass < 2; pass++) {
+            for (let i = 0; i < 4; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI / 2) * i + Math.PI / 4);
+                heartLobe(ctx, size);
+                if (pass === 0) {
+                    ctx.lineWidth = size * 0.16;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.stroke(); ctx.fill();
+                } else {
+                    ctx.fillStyle = P.stickerFill;
+                    ctx.strokeStyle = P.stickerEdge;
+                    ctx.lineWidth = 2;
+                    ctx.fill(); ctx.stroke();
+                    ctx.strokeStyle = P.stickerVein;
+                    ctx.lineWidth = 2.5;
+                    ctx.beginPath(); ctx.moveTo(0, -size * 0.14); ctx.lineTo(0, -size * 0.6); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.restore();
+    }
+
+    function stickerFlower(ctx, x, y, size) {
+        ctx.save();
+        ctx.translate(x, y);
+        for (let pass = 0; pass < 2; pass++) {
+            for (let i = 0; i < 5; i++) {
+                ctx.save();
+                ctx.rotate((Math.PI * 2 * i) / 5);
+                ctx.beginPath();
+                ctx.ellipse(0, -size * 0.5, size * 0.3, size * 0.46, 0, 0, Math.PI * 2);
+                if (pass === 0) {
+                    ctx.lineWidth = size * 0.16;
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.fillStyle = '#ffffff';
+                    ctx.stroke(); ctx.fill();
+                } else {
+                    ctx.fillStyle = P.stickerFill;
+                    ctx.strokeStyle = P.stickerEdge;
+                    ctx.lineWidth = 2;
+                    ctx.fill(); ctx.stroke();
+                }
+                ctx.restore();
+            }
+        }
+        ctx.fillStyle = '#ffffff';
+        ctx.beginPath(); ctx.arc(0, 0, size * 0.27, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = P.light;
+        ctx.strokeStyle = P.stickerEdge;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(0, 0, size * 0.18, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+    }
+
+    function tinyFlower(ctx, x, y, s) {
+        ctx.save();
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = P.stickerEdge;
+        ctx.lineWidth = 1.5;
+        for (let i = 0; i < 5; i++) {
+            const a = (Math.PI * 2 * i) / 5;
+            ctx.beginPath();
+            ctx.arc(x + Math.cos(a) * s * 0.55, y + Math.sin(a) * s * 0.55, s * 0.45, 0, Math.PI * 2);
+            ctx.fill(); ctx.stroke();
+        }
+        ctx.fillStyle = P.stickerFill;
+        ctx.beginPath(); ctx.arc(x, y, s * 0.3, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
+    // three little "pop" lines next to a sticker
+    function burst(ctx, x, y, size, startAngle) {
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.strokeStyle = P.frame;
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        for (let i = 0; i < 3; i++) {
+            const a = startAngle + (i - 1) * 0.5;
+            ctx.beginPath();
+            ctx.moveTo(Math.cos(a) * size * 0.7, Math.sin(a) * size * 0.7);
+            ctx.lineTo(Math.cos(a) * size * 1.1, Math.sin(a) * size * 1.1);
+            ctx.stroke();
+        }
+        ctx.restore();
+    }
+
+    function hillLayer(ctx, W, H, y, amp, color, shift) {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(0, H);
+        ctx.lineTo(0, y + shift);
+        ctx.bezierCurveTo(W * 0.25, y - amp, W * 0.4, y + amp, W * 0.62, y - amp * 0.3);
+        ctx.bezierCurveTo(W * 0.8, y - amp * 1.2, W * 0.92, y + amp * 0.4, W, y - amp * 0.5);
+        ctx.lineTo(W, H);
+        ctx.closePath();
+        ctx.fill();
+    }
+
+    function shieldFallback(ctx, cx, top) {
+        ctx.save();
+        ctx.translate(cx, top);
+        ctx.fillStyle = P.badgeBottom;
+        ctx.beginPath();
+        ctx.moveTo(-24, 0); ctx.lineTo(24, 0); ctx.lineTo(24, 30);
+        ctx.quadraticCurveTo(24, 48, 0, 58);
+        ctx.quadraticCurveTo(-24, 48, -24, 30);
+        ctx.closePath(); ctx.fill();
+        ctx.fillStyle = P.badgeTop;
+        ctx.beginPath(); ctx.moveTo(-24, 0); ctx.lineTo(-4, 0); ctx.lineTo(-24, 34); ctx.closePath(); ctx.fill();
+        ctx.restore();
+    }
+
+    // ---------------- the frame ----------------
+    async function buildFloralStrip() {
+        P = buildPalette();
+        const name = (userData.name || '').trim();
+        const logo = await getLogo();
+        const img = await loadImageElement(photoData);
+        const key = [photoData.length, photoData.slice(-40), name, logo ? 'L' : 'N', selectedTheme, P.h, P.bgTop].join('|');
+        if (cache.key === key) return cache;
+
+        // read the shots back out of the strip (4:3 cells, 12px gaps)
+        const g = 12;
+        const srcCellW = img.naturalWidth - g * 2;
+        const srcCellH = srcCellW * 3 / 4;
+        const n = Math.max(1, Math.round((img.naturalHeight - g) / (srcCellH + g)));
+        const realCellH = (img.naturalHeight - g * (n + 1)) / n;
+
+        const W = L.W, H = frameHeight(n);
+        const canvas = document.createElement('canvas');
+        canvas.width = W; canvas.height = H;
+        const ctx = canvas.getContext('2d');
+
+        const cellX = L.sideX;
+        const cellY = (i) => L.top + i * (L.cellH + L.gap);
+        const E = L.top + n * L.cellH + (n - 1) * L.gap;       // bottom edge of the last photo
+
+        // ----- background -----
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, P.bgTop);
+        bg.addColorStop(1, P.bgBottom);
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+
+        // soft blob on the right side + hills at the bottom
+        ctx.fillStyle = P.blob;
+        ctx.beginPath();
+        ctx.moveTo(W, E - L.cellH * 0.9);
+        ctx.bezierCurveTo(W * 0.82, E - L.cellH * 0.75, W * 0.9, E - L.cellH * 0.2, W * 0.78, E + 40);
+        ctx.lineTo(W, E + 40);
+        ctx.closePath();
+        ctx.fill();
+        hillLayer(ctx, W, H, H - 210, 34, P.hill1, 0);
+        hillLayer(ctx, W, H, H - 150, 28, P.hill2, 16);
+        hillLayer(ctx, W, H, H - 90, 22, P.hill3, 10);
+
+        // ----- background decorations (behind the photos) -----
+        clover(ctx, 74, 44, 30);
+        sparkle(ctx, 150, 46, 13, P.sparkle);
+        sparkle(ctx, 40, 106, 11, P.sparkle);
+        branch(ctx, W + 6, 74, 96, Math.PI * 0.88);
+        sparkle(ctx, W - 44, 228, 12, P.sparkle);
+        bigLeaves(ctx, -6, L.top + L.cellH + 10, 92, -0.95);
+        sparkle(ctx, 42, L.top + L.cellH + 70, 12, P.sparkle);
+        sparkle(ctx, 42, cellY(1) + L.cellH * 0.45, 11, P.sparkle);
+        sparkle(ctx, W - 46, cellY(1) + 40, 12, P.sparkle);
+        sparkle(ctx, W - 42, cellY(1) + 90, 9, P.sparkle);
+        if (n >= 3) {
+            bigLeaves(ctx, -8, cellY(2) + L.cellH * 0.8, 104, -0.7);
+            sparkle(ctx, 42, cellY(2) + L.cellH * 0.35, 11, P.sparkle);
+            branch(ctx, W - 28, E + 6, 150, -Math.PI * 0.55);
+            sparkle(ctx, W - 44, E + 70, 12, P.sparkle);
+        }
+
+        // ----- photo cells: dark frame, soft glow, light tint of the theme -----
+        for (let i = 0; i < n; i++) {
+            const x = cellX, y = cellY(i);
+            ctx.save();
+            ctx.shadowColor = P.shadow;
+            ctx.shadowBlur = 18;
+            ctx.shadowOffsetY = 7;
+            ctx.fillStyle = P.frame;
+            ctx.beginPath();
+            ctx.roundRect(x - L.pad, y - L.pad, L.cellW + L.pad * 2, L.cellH + L.pad * 2, L.radius + L.pad);
+            ctx.fill();
+            ctx.restore();
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(x, y, L.cellW, L.cellH, L.radius);
+            ctx.clip();
+            if (CANVAS_FILTER_OK) ctx.filter = 'saturate(1.06) contrast(1.03) brightness(1.03)';
+            ctx.drawImage(img, g, g + i * (realCellH + g), srcCellW, realCellH, x, y, L.cellW, L.cellH);
+            ctx.filter = 'none';
+            ctx.globalAlpha = 0.06;
+            ctx.fillStyle = P.badgeTop;
+            ctx.fillRect(x, y, L.cellW, L.cellH);
+            ctx.restore();
+
+            // thin inner glow ring
+            ctx.save();
+            ctx.strokeStyle = P.frameGlow;
+            ctx.globalAlpha = 0.7;
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.roundRect(x + 1.5, y + 1.5, L.cellW - 3, L.cellH - 3, L.radius - 1);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        // ----- stickers INSIDE the photos (clipped to each frame) -----
+        const inCell = (i, fn) => {
+            ctx.save();
+            ctx.beginPath();
+            ctx.roundRect(cellX, cellY(i), L.cellW, L.cellH, L.radius);
+            ctx.clip();
+            fn(cellX, cellY(i));
+            ctx.restore();
+        };
+        for (let i = 0; i < n; i++) {
+            const pattern = i % 3;
+            inCell(i, (x, y) => {
+                if (pattern === 0) {
+                    clover(ctx, x + L.cellW - 50, y + 52, 34);
+                    burst(ctx, x + L.cellW - 50, y + 52, 34, Math.PI * 0.5);
+                } else if (pattern === 1) {
+                    stickerFlower(ctx, x + 52, y + L.cellH - 50, 34);
+                    burst(ctx, x + 52, y + L.cellH - 50, 34, -Math.PI * 0.5);
+                } else {
+                    clover(ctx, x + L.cellW - 50, y + 52, 34);
+                    burst(ctx, x + L.cellW - 50, y + 52, 34, Math.PI * 0.5);
+                    tinyFlower(ctx, x + 38, y + L.cellH - 36, 13);
+                    tinyFlower(ctx, x + 72, y + L.cellH - 58, 11);
+                }
+            });
+        }
+
+        // ----- bottom branches over the hills -----
+        branch(ctx, 24, H - 6, 128, -Math.PI * 0.42);
+        branch(ctx, W - 36, H - 6, 150, -Math.PI * 0.6);
+        tinyFlower(ctx, W - 40, H - 34, 14);
+        sparkle(ctx, 120, H - 110, 12, P.sparkle);
+        sparkle(ctx, 90, E + 150, 11, P.sparkle);
+
+        // ----- logo plaque -----
+        const plaqueW = L.cellW, plaqueH = 128;
+        const px = cellX, py = E + 62;
+        ctx.save();
+        ctx.shadowColor = P.shadow;
+        ctx.shadowBlur = 16;
+        ctx.shadowOffsetY = 5;
+        ctx.fillStyle = P.plaque;
+        ctx.beginPath(); ctx.roundRect(px, py, plaqueW, plaqueH, 40); ctx.fill();
+        ctx.restore();
+
+        const midY = py + plaqueH / 2;
+        const leftCx = px + plaqueW * 0.27;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        if (logo) {
+            const maxH = LOGO_HAS_TEXT ? 100 : 56;
+            const s = Math.min(130 / logo.naturalWidth, maxH / logo.naturalHeight);
+            const lw = logo.naturalWidth * s, lh = logo.naturalHeight * s;
+            ctx.drawImage(logo, leftCx - lw / 2, LOGO_HAS_TEXT ? midY - lh / 2 : py + 14, lw, lh);
+        } else if (!LOGO_HAS_TEXT) {
+            shieldFallback(ctx, leftCx, py + 12);
+        }
+        if (!LOGO_HAS_TEXT) {
+            ctx.fillStyle = P.dark;
+            ctx.font = '900 22px Arial, sans-serif';
+            ctx.fillText('REPUBLIC', leftCx, py + 86);
+            ctx.font = '800 18px Arial, sans-serif';
+            ctx.fillText('POLYTECHNIC', leftCx, py + 108);
+        }
+
+        // divider
+        ctx.strokeStyle = P.stem;
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(px + plaqueW * 0.5, py + 22); ctx.lineTo(px + plaqueW * 0.5, py + plaqueH - 22); ctx.stroke();
+
+        // ESG badge
+        const esgCx = px + plaqueW * 0.75;
+        const bw = 190, bh = 92;
+        const eg = ctx.createLinearGradient(0, midY - bh / 2, 0, midY + bh / 2);
+        eg.addColorStop(0, P.badgeTop);
+        eg.addColorStop(1, P.badgeBottom);
+        ctx.fillStyle = eg;
+        ctx.beginPath(); ctx.roundRect(esgCx - bw / 2, midY - bh / 2, bw, bh, 26); ctx.fill();
+        leaf(ctx, esgCx - 78, midY - 14, 26, -0.9, P.light, P.light);
+        ctx.fillStyle = '#ffffff';
+        ctx.font = '900 44px Arial, sans-serif';
+        ctx.fillText('ESG', esgCx + 12, midY - 16);
+        ctx.font = '600 14px Arial, sans-serif';
+        ctx.fillText('Environmental,', esgCx, midY + 16);
+        ctx.fillText('Social & Governance', esgCx, midY + 33);
+
+        // ----- slogan with side lines -----
+        const sloganY = py + plaqueH + 76;
+        ctx.font = `italic 400 46px ${SCRIPT_FONT}`;
+        ctx.fillStyle = P.frameDark;
+        ctx.fillText(SLOGAN_TEXT, W / 2, sloganY);
+        const sw = ctx.measureText(SLOGAN_TEXT).width;
+        ctx.strokeStyle = P.frame;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(px + 6, sloganY + 4); ctx.lineTo(W / 2 - sw / 2 - 18, sloganY + 4);
+        ctx.moveTo(W / 2 + sw / 2 + 18, sloganY + 4); ctx.lineTo(px + plaqueW - 6, sloganY + 4);
+        ctx.stroke();
+        sparkle(ctx, px - 6, sloganY + 6, 10, P.sparkle);
+
+        // ----- date row with leaf icons -----
+        const dateY = sloganY + 84;
+        const dateText = new Date().toLocaleDateString('en-SG', { day: '2-digit', month: 'short', year: 'numeric' }) + '  ·  RP ESG';
+        ctx.font = '600 30px Arial, sans-serif';
+        ctx.fillStyle = P.dark;
+        ctx.fillText(dateText, W / 2, dateY);
+        const dw = ctx.measureText(dateText).width;
+        leaf(ctx, W / 2 - dw / 2 - 58, dateY + 6, 30, -0.6, P.stickerFill, P.stickerEdge);
+        leaf(ctx, W / 2 + dw / 2 + 28, dateY - 6, 30, Math.PI + 0.6, P.stickerFill, P.stickerEdge);
+
+        // ----- name pill with side lines -----
+        const pillY = dateY + 66;
+        const label = name || 'Visitor';
+        ctx.font = '600 24px Arial, sans-serif';
+        const pw = Math.min(plaqueW - 120, Math.max(150, ctx.measureText(label).width + 56)), ph = 46;
+        ctx.strokeStyle = P.frame;
+        ctx.globalAlpha = 0.7;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(W / 2 - pw / 2 - 120, pillY); ctx.lineTo(W / 2 - pw / 2 - 16, pillY);
+        ctx.moveTo(W / 2 + pw / 2 + 16, pillY); ctx.lineTo(W / 2 + pw / 2 + 120, pillY);
+        ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = P.pill;
+        ctx.beginPath(); ctx.roundRect(W / 2 - pw / 2, pillY - ph / 2, pw, ph, ph / 2); ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(label, W / 2, pillY + 1);
+
+        cache.key = key;
+        cache.url = canvas.toDataURL('image/png');
+        cache.w = W;
+        cache.h = H;
+        return cache;
+    }
+
+    // ---- Style page preview (redraws every time a theme is tapped) ----
+    function resetPreviewFrame(previewPhoto, overlay) {
+        if (overlay) overlay.style.removeProperty('display');
+        const frame = previewPhoto && previewPhoto.closest('.preview-frame');
+        if (frame) { frame.style.removeProperty('width'); frame.style.removeProperty('height'); }
+        if (previewPhoto) previewPhoto.style.removeProperty('object-fit');
+    }
+
+    const updatePreviewBeforeV4 = updatePreviewWithCutout;
+    updatePreviewWithCutout = function () {
+        const previewPhoto = document.getElementById('preview-photo');
+        const overlay = document.getElementById('selected-overlay');
+
+        if (!previewPhoto || !isStrip()) {
+            resetPreviewFrame(previewPhoto, overlay);
+            return updatePreviewBeforeV4.apply(this, arguments);
+        }
+
+        stopBoomerangPreview();
+        if (overlay) overlay.style.setProperty('display', 'none', 'important');
+        previewPhoto.style.setProperty('object-fit', 'contain', 'important');
+
+        buildFloralStrip()
+            .then((result) => {
+                if (!isStrip()) return;
+                const frame = previewPhoto.closest('.preview-frame');
+                if (frame) {
+                    const w = currentDevice === 'mobile' ? 240 : 300;
+                    frame.style.setProperty('width', w + 'px', 'important');
+                    frame.style.setProperty('height', Math.round(w * result.h / result.w) + 'px', 'important');
+                }
+                previewPhoto.src = result.url;
+            })
+            .catch((error) => console.error('Floral strip preview failed:', error));
+    };
+
+    // ---- Saved / emailed image ----
+    const processStillBeforeV4 = processFinalPhotoFromStillFrame;
+    processFinalPhotoFromStillFrame = function () {
+        if (!isStrip()) return processStillBeforeV4.apply(this, arguments);
+        return buildFloralStrip()
+            .then((result) => { userData.processedPhoto = result.url; })
+            .catch((error) => {
+                console.error('Floral strip failed, using previous frame:', error);
+                return processStillBeforeV4.apply(this, arguments);
+            });
+    };
+})();
