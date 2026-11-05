@@ -7170,11 +7170,11 @@ function getFaceAccessoryGeometry(landmarks, width, height) {
 const IMAGE_PROPS = {
     'rp-crown': {
         src: '/assets/propsforphototaking/rp-crown.png',
-        widthEyes: 2.4, anchorX: 0.5, anchorY: 0.57, lift: 0.12
+        widthEyes: 2.5, anchorX: 0.5, anchorY: 0.57, lift: 0.12
     },
     'rp-mouse-ears': {
         src: '/assets/propsforphototaking/rp-mouse-ears.png',   // must match the real file name exactly (case-sensitive)
-        widthEyes: 2.1, anchorX: 0.5, anchorY: 0.55, lift: 0.15
+        widthEyes: 2.3, anchorX: 0.5, anchorY: 0.45, lift: 0.15
     }
 };
 Object.entries(IMAGE_PROPS).forEach(([id, prop]) => {
@@ -7257,7 +7257,7 @@ function drawRpFutureReadyAccessory(ctx, geometry, width, height, time) {
 
 const RP_SUNGLASSES = {
     src: '/assets/propsforphototaking/rp-sticker-sunglasses.png',
-    widthEyes: 1.8, anchorY: 0.53, drop: 0.0,
+    widthEyes: 2.3, anchorY: 0.53, drop: 0.0,
     image: new Image()
 };
 RP_SUNGLASSES.image.src = RP_SUNGLASSES.src;
@@ -7284,7 +7284,7 @@ function drawRpSunglassesAccessory(ctx, geometry) {
 // ---------------------------------------------------------------------------
 const RP_GO_GREEN = {
     srcCandidates: ['/assets/propsforphototaking/rp-go-green.png', '/assets/propsforphototaking/RPGoGreenGoRP!.png', '/assets/propsforphototaking/RPGoGreenGoRP_.png'],
-    widthEyes: 2.6, anchorX: 0.55, anchorY: 0.82, smoothing: 0.5, holdMs: 400,
+    widthEyes: 2.8, anchorX: 0.55, anchorY: 0.82, smoothing: 0.5, holdMs: 400,
     fistRatio: 1.35,    // too strict? raise it (1.5). Open hand triggers it? lower it (1.2)
     debug: false,
     image: new Image(), srcIndex: 0, imageFailed: false,
@@ -9241,4 +9241,21 @@ function resetInactivityTimer() {
             mirrorBtn.setAttribute('aria-pressed', 'false');
         }
     });
+})();
+
+(function fixPropScale() {
+    // 1) Make every overlay canvas crop exactly like the video (object-fit: cover)
+    const style = document.createElement('style');
+    style.id = 'prop-canvas-cover-fix';
+    style.textContent =
+        '#face-accessory-canvas,#fx-canvas,#hand-gesture-canvas,#wink-canvas,#reaction-canvas{' +
+        'object-fit:cover !important;object-position:center !important}';
+    document.head.appendChild(style);
+
+    // 2) Stop head-nod from squashing the worn props vertically
+    const originalEstimate = estimateHeadPose;
+    estimateHeadPose = function () {
+        const pose = originalEstimate.apply(this, arguments);
+        return { cosYaw: pose.cosYaw, cosPitch: 1 };
+    };
 })();
