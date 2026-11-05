@@ -7257,7 +7257,7 @@ function drawRpFutureReadyAccessory(ctx, geometry, width, height, time) {
 
 const RP_SUNGLASSES = {
     src: '/assets/propsforphototaking/rp-sticker-sunglasses.png',
-    widthEyes: 2.3, anchorY: 0.53, drop: 0.0,
+    widthEyes: 2.0, anchorY: 0.53, drop: 0.0,
     image: new Image()
 };
 RP_SUNGLASSES.image.src = RP_SUNGLASSES.src;
@@ -7284,7 +7284,7 @@ function drawRpSunglassesAccessory(ctx, geometry) {
 // ---------------------------------------------------------------------------
 const RP_GO_GREEN = {
     srcCandidates: ['/assets/propsforphototaking/rp-go-green.png', '/assets/propsforphototaking/RPGoGreenGoRP!.png', '/assets/propsforphototaking/RPGoGreenGoRP_.png'],
-    widthEyes: 2.8, anchorX: 0.55, anchorY: 0.82, smoothing: 0.5, holdMs: 400,
+    widthEyes: 2.5, anchorX: 0.55, anchorY: 0.82, smoothing: 0.5, holdMs: 400,
     fistRatio: 1.35,    // too strict? raise it (1.5). Open hand triggers it? lower it (1.2)
     debug: false,
     image: new Image(), srcIndex: 0, imageFailed: false,
@@ -9257,5 +9257,54 @@ function resetInactivityTimer() {
     estimateHeadPose = function () {
         const pose = originalEstimate.apply(this, arguments);
         return { cosYaw: pose.cosYaw, cosPitch: 1 };
+    };
+})();
+
+// ============================================================================
+// NON-MIRRORED CAMERA (final) - ignores the .mirror class, uses data-flip instead
+// ============================================================================
+(function noMirrorFinal() {
+    const old = document.getElementById('no-mirror-default-style');
+    if (old) old.remove();
+
+    const style = document.createElement('style');
+    style.id = 'no-mirror-final-style';
+    style.textContent =
+        'html body #video, html body #video.mirror{transform:none !important;-webkit-transform:none !important}' +
+        'html body #video[data-flip="1"]{transform:scaleX(-1) !important;-webkit-transform:scaleX(-1) !important}' +
+        'html body #face-accessory-canvas, html body #fx-canvas, html body #hand-gesture-canvas,' +
+        'html body #wink-canvas, html body #reaction-canvas{transform:none !important;-webkit-transform:none !important}';
+    document.head.appendChild(style);
+
+    function syncMirrorState() {
+        const video = document.getElementById('video');
+        const mirrorBtn = document.getElementById('mirror-btn');
+        if (video) {
+            video.classList.remove('mirror');
+            video.dataset.flip = isMirrored ? '1' : '0';
+        }
+        if (mirrorBtn) {
+            mirrorBtn.textContent = isMirrored ? 'Normal View' : 'Mirror View';
+            mirrorBtn.setAttribute('aria-pressed', String(isMirrored));
+        }
+    }
+
+    // Start not mirrored, right now and again once the page is ready
+    isMirrored = false;
+    syncMirrorState();
+    document.addEventListener('DOMContentLoaded', () => { isMirrored = false; syncMirrorState(); });
+
+    // The Mirror View button still works
+    const toggleMirrorBefore = toggleMirror;
+    toggleMirror = function () {
+        toggleMirrorBefore.apply(this, arguments);
+        syncMirrorState();
+    };
+
+    // Re-apply every time the camera starts (e.g. after Retake)
+    const initializeCameraBefore = initializeCamera;
+    initializeCamera = async function () {
+        await initializeCameraBefore.apply(this, arguments);
+        syncMirrorState();
     };
 })();
