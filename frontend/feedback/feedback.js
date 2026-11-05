@@ -9216,3 +9216,29 @@ function resetInactivityTimer() {
     startInactivityTimer();
 }
 
+// ============================================================================
+// NON-MIRRORED CAMERA BY DEFAULT
+// Live preview is normal (not flipped). The "Mirror View" button still works.
+// ============================================================================
+(function forceNonMirroredCamera() {
+    const style = document.createElement('style');
+    style.id = 'no-mirror-default-style';
+    style.textContent =
+        '#video{transform:none !important;-webkit-transform:none !important}' +
+        '#video.mirror{transform:scaleX(-1) !important;-webkit-transform:scaleX(-1) !important}' +
+        '#face-accessory-canvas,#fx-canvas,#hand-gesture-canvas,#wink-canvas,#reaction-canvas{' +
+        'transform:none !important;-webkit-transform:none !important}';
+    document.head.appendChild(style);
+
+    // Make sure the state and button label match "not mirrored" on load
+    document.addEventListener('DOMContentLoaded', () => {
+        isMirrored = false;
+        const video = document.getElementById('video');
+        if (video) video.classList.remove('mirror');
+        const mirrorBtn = document.getElementById('mirror-btn');
+        if (mirrorBtn) {
+            mirrorBtn.textContent = 'Mirror View';
+            mirrorBtn.setAttribute('aria-pressed', 'false');
+        }
+    });
+})();
